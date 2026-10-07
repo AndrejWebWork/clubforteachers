@@ -66,17 +66,18 @@ function presign({ config, method, key, expires }) {
   return `https://${host}${canonicalUri}?${query}&X-Amz-Signature=${signature}`;
 }
 
-async function signedCall(config, method, resource, payload = "") {
+async function signedCall(config, method, resource, payload = "", query = "") {
   const host = config.host;
   const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
   const payloadHash = createHash("sha256").update(payload).digest("hex");
-  const canonical = [method, resource, "", `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`, "host;x-amz-content-sha256;x-amz-date", payloadHash].join("\n");
+  const canonicalQuery = query.split("&").filter(Boolean).map((part) => (part.includes("=") ? part : `${part}=`)).sort().join("&");
+  const canonical = [method, resource, canonicalQuery, `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`, "host;x-amz-content-sha256;x-amz-date", payloadHash].join("\n");
   const scope = `${dateStamp}/${config.region}/s3/aws4_request`;
   const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, createHash("sha256").update(canonical).digest("hex")].join("\n");
   const signature = createHmac("sha256", signingKey(config.secretKey, dateStamp, config.region)).update(stringToSign).digest("hex");
   const authorization = `AWS4-HMAC-SHA256 Credential=${config.accessKey}/${scope}, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=${signature}`;
-  return fetch(`https://${host}${resource}`, {
+  return fetch(`https://${host}${resource}${query ? `?${query}` : ""}`, {
     method,
     headers: {
       authorization,
@@ -96,13 +97,16 @@ export async function ensureBucket(config) {
     throw Object.assign(new Error(code), { status: 502 });
   }
   const names = [...xml.matchAll(/<Name>([^<]+)<\/Name>/g)].map((match) => match[1]);
-  if (names.includes(config.bucket)) return;
+  if (!names.includes(config.bucket)) {
   const created = await signedCall(config, "PUT", `/${config.bucket}`);
   if (!created.ok && created.status !== 409) {
     const detail = await created.text();
     const code = detail.match(/<Code>([^<]+)<\/Code>/)?.[1] || "bucket-create";
     throw Object.assign(new Error(code), { status: 502 });
   }
+  }
+  const cors = `<?xml version="1.0" encoding="UTF-8"?><CORSConfiguration><CORSRule><AllowedOrigin>*</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>`;
+  await signedCall(config, "PUT", `/${config.bucket}`, cors, "cors");
 }
 
 export function videoKey(originalName) {
@@ -116,12 +120,86 @@ export function watchPath(key) {
 
 export function fileKey(token) {
   const key = decodeURIComponent(token || "");
-  if (!/^videos\/[\w.\-]+$/.test(key)) return "";
+  if (!/^(videos|files)\/[\w.\-]+$/.test(key)) return "";
   return key;
+}
+
+export function scratchDir(preferred) {
+  try {
+    if (!existsSync(preferred)) mkdirSync(preferred, { recursive: true });
+    return preferred;
+  } catch {
+    const fallback = path.join("/tmp", "club-uploads");
+    if (!existsSync(fallback)) mkdirSync(fallback, { recursive: true });
+    return fallback;
+  }
+}
+
+function safeName(name) {
+  return String(name || "datoteka").replace(/[^\w.\-]+/g, "-").replace(/^-+|-+$/g, "").slice(-80) || "datoteka";
+}
+
+export async function putBytes(config, key, buffer, contentType = "application/octet-stream") {
+  const host = config.host;
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = createHash("sha256").update(buffer).digest("hex");
+  const resource = `/${config.bucket}/${encodeKey(key)}`;
+  const canonical = ["PUT", resource, "", `content-type:${contentType}\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`, "content-type;host;x-amz-content-sha256;x-amz-date", payloadHash].join("\n");
+  const scope = `${dateStamp}/${config.region}/s3/aws4_request`;
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, createHash("sha256").update(canonical).digest("hex")].join("\n");
+  const signature = createHmac("sha256", signingKey(config.secretKey, dateStamp, config.region)).update(stringToSign).digest("hex");
+  const response = await fetch(`https://${host}${resource}`, {
+    method: "PUT",
+    headers: {
+      authorization: `AWS4-HMAC-SHA256 Credential=${config.accessKey}/${scope}, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=${signature}`,
+      "content-type": contentType,
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": amzDate,
+    },
+    body: buffer,
+  });
+  if (!response.ok) throw Object.assign(new Error("remote"), { status: 502 });
+}
+
+export async function persistBytes({ root, uploadDir, name, buffer, contentType }) {
+  const safe = safeName(name);
+  const config = mediaConfig(root);
+  if (config.remote) {
+    await ensureBucket(config);
+    const key = `files/${Date.now()}-${randomBytes(4).toString("hex")}-${safe}`;
+    await putBytes(config, key, buffer, contentType || "application/octet-stream");
+    return { url: watchPath(key), size: buffer.length, name: safe, key };
+  }
+  if (process.env.VERCEL) return { error: "Складот за датотеки не е поврзан." };
+  const dir = scratchDir(uploadDir);
+  const stored = `${Date.now()}-${randomBytes(4).toString("hex")}-${safe}`;
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(path.join(dir, stored), buffer);
+  return { url: `/uploads/${stored}`, size: buffer.length, name: safe };
+}
+
+export async function dropStored(root, uploadDir, url) {
+  const config = mediaConfig(root);
+  const match = String(url || "").match(/\/api\/media\/file\/([^/?]+)/);
+  if (match && config.remote) {
+    const key = fileKey(match[1]);
+    if (key) await removeStored(config, key).catch(() => {});
+    return;
+  }
+  removeLocalUpload(uploadDir, url);
 }
 
 export function videoTicket(config, originalName) {
   const key = videoKey(originalName);
+  return {
+    uploadUrl: presign({ config, method: "PUT", key, expires: 3600 }),
+    publicUrl: watchPath(key),
+  };
+}
+
+export function fileTicket(config, originalName) {
+  const key = `files/${Date.now()}-${randomBytes(4).toString("hex")}-${safeName(originalName)}`;
   return {
     uploadUrl: presign({ config, method: "PUT", key, expires: 3600 }),
     publicUrl: watchPath(key),

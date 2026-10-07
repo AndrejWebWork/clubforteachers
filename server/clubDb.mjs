@@ -9,7 +9,7 @@ import {
   sessionCookie,
   uploadHeaders,
 } from "./shield.mjs";
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -436,12 +436,18 @@ async function handle(method, url, req) {
   if (method === "POST" && url === "/api/media/video") {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
-    const { compressVideo, mediaConfig, publishVideo, saveVideoStream } = await import("./mediaStore.mjs");
+    const { compressVideo, mediaConfig, publishVideo, saveVideoStream, scratchDir } = await import("./mediaStore.mjs");
     let leftover = "";
     try {
-      const saved = await saveVideoStream(req, uploadDir, req.headers["x-file-name"]);
+      const saved = await saveVideoStream(req, scratchDir(uploadDir), req.headers["x-file-name"]);
       leftover = saved.path;
-      const packed = await compressVideo(saved.path);
+      let packed;
+      try {
+        packed = await compressVideo(saved.path);
+      } catch (error) {
+        if (error.status !== 503) throw error;
+        packed = { path: saved.path, size: saved.size };
+      }
       leftover = packed.path;
       const config = mediaConfig(root);
       if (config.remote) {
@@ -528,10 +534,21 @@ async function handle(method, url, req) {
   if (method === "POST" && url === "/api/media/ticket") {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
-    const { mediaConfig, videoTicket } = await import("./mediaStore.mjs");
+    const { ensureBucket, mediaConfig, videoTicket } = await import("./mediaStore.mjs");
     const config = mediaConfig(root);
     if (!config.remote) return { status: 400, body: { error: "Бесплатниот надворешен склад не е поврзан." } };
+    await ensureBucket(config);
     return { status: 200, body: videoTicket(config, body.name) };
+  }
+
+  if (method === "POST" && url === "/api/media/file-ticket") {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const { ensureBucket, fileTicket, mediaConfig } = await import("./mediaStore.mjs");
+    const config = mediaConfig(root);
+    if (!config.remote) return { status: 400, body: { error: "Бесплатниот надворешен склад не е поврзан." } };
+    await ensureBucket(config);
+    return { status: 200, body: fileTicket(config, body.name) };
   }
 
   if (method === "PATCH" && url === "/api/me") {
@@ -754,8 +771,8 @@ async function handle(method, url, req) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
     const existing = await pool.query("SELECT url FROM videos WHERE id = $1", [videoMatch[1]]);
-    const { removeLocalUpload } = await import("./mediaStore.mjs");
-    removeLocalUpload(uploadDir, existing.rows[0]?.url);
+    const { dropStored } = await import("./mediaStore.mjs");
+    await dropStored(root, uploadDir, existing.rows[0]?.url);
     await pool.query("DELETE FROM videos WHERE id = $1", [videoMatch[1]]);
     return { status: 200, body: { ok: true } };
   }
@@ -768,35 +785,49 @@ async function handle(method, url, req) {
       return { status: 400, body: { error: "Овој вид датотека не е дозволен." } };
     }
     const mime = text(body.mime, 80) || "application/octet-stream";
+    let linked = "";
+    try {
+      const match = String(body.url || "").match(/^\/api\/media\/file\/([^/?]+)$/);
+      const key = match ? decodeURIComponent(match[1]) : "";
+      if (/^files\/[\w.\-]+$/.test(key)) linked = `/api/media/file/${encodeURIComponent(key)}`;
+    } catch {
+      linked = "";
+    }
+    if (linked) {
+      const size = Math.max(0, Number(body.size) || 0);
+      const fileId = id("f");
+      const createdAt = new Date().toISOString();
+      await pool.query(
+        "INSERT INTO attachments (id, name, mime, size, stored, url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+        [fileId, name, mime, size, decodeURIComponent(linked.split("/").pop()), linked, createdAt],
+      );
+      return { status: 201, body: { attachment: { id: fileId, name, mime, size, url: linked, createdAt } } };
+    }
     const raw = String(body.data || "");
     const base64 = raw.includes(",") ? raw.split(",").pop() : raw;
     const buffer = Buffer.from(base64, "base64");
     if (!buffer.length || buffer.length > 4 * 1024 * 1024) {
       return { status: 400, body: { error: "Прилогот мора да биде до 4 MB." } };
     }
+    const { persistBytes } = await import("./mediaStore.mjs");
+    const kept = await persistBytes({ root, uploadDir, name, buffer, contentType: mime });
+    if (kept.error) return { status: 400, body: { error: kept.error } };
     const fileId = id("f");
-    const stored = `${fileId}-${name.replace(/\s+/g, "-")}`;
-    if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
-    writeFileSync(path.join(uploadDir, stored), buffer);
     const createdAt = new Date().toISOString();
-    const fileUrl = `/uploads/${stored}`;
     await pool.query(
       "INSERT INTO attachments (id, name, mime, size, stored, url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-      [fileId, name, mime, buffer.length, stored, fileUrl, createdAt],
+      [fileId, name, mime, buffer.length, kept.key || path.basename(kept.url), kept.url, createdAt],
     );
-    return { status: 201, body: { attachment: { id: fileId, name, mime, size: buffer.length, url: fileUrl, createdAt } } };
+    return { status: 201, body: { attachment: { id: fileId, name, mime, size: buffer.length, url: kept.url, createdAt } } };
   }
 
   const fileMatch = url.match(/^\/api\/attachments\/([^/]+)$/);
   if (method === "DELETE" && fileMatch) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
-    const found = await pool.query("SELECT stored FROM attachments WHERE id = $1", [fileMatch[1]]);
-    const stored = found.rows[0]?.stored;
-    if (stored) {
-      const target = path.join(uploadDir, path.basename(stored));
-      if (existsSync(target)) unlinkSync(target);
-    }
+    const found = await pool.query("SELECT url, stored FROM attachments WHERE id = $1", [fileMatch[1]]);
+    const { dropStored } = await import("./mediaStore.mjs");
+    await dropStored(root, uploadDir, found.rows[0]?.url || (found.rows[0]?.stored ? `/uploads/${path.basename(found.rows[0].stored)}` : ""));
     await pool.query("DELETE FROM attachments WHERE id = $1", [fileMatch[1]]);
     return { status: 200, body: { ok: true } };
   }
@@ -922,6 +953,7 @@ async function handle(method, url, req) {
     text,
     id,
     uploadDir,
+    root,
     actorFrom,
     recordHit,
   });
@@ -969,9 +1001,7 @@ export function clubApiMiddleware() {
         ? "Видеото е преголемо."
         : safe.includes("DATABASE_URL is missing")
           ? "DATABASE_URL не е поставен на Vercel."
-          : safe
-            ? `Базата не можеше да го заврши барањето. ${safe}`
-            : "Базата не можеше да го заврши барањето.";
+          : "Базата не можеше да го заврши барањето.";
       res.statusCode = status;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
       res.end(JSON.stringify({ error: message }));

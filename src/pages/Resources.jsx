@@ -3,7 +3,8 @@ import { ArrowLeft, ArrowRight, FileText, Link2, Presentation, Search, Wrench } 
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
-import { downloadText, readDataUrl } from "../download";
+import { downloadText } from "../download";
+import { placeFile } from "../media";
 import { Button, PageHeader } from "../components/ui";
 
 const kinds = ["Сите", "Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"];
@@ -68,8 +69,12 @@ export function Resources() {
             try {
               const payload = { ...draft };
               if (file) {
-                payload.data = await readDataUrl(file);
-                payload.name = file.name;
+                const placed = await placeFile(file);
+                payload.name = placed.name;
+                if (placed.url) {
+                  payload.url = placed.url;
+                  payload.size = placed.size;
+                } else payload.data = placed.data;
               }
               await api.addResource(payload);
               setDraft({ title: "", category: "Материјали", type: "PDF", detail: "" });

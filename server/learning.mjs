@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { documents as staticDocuments, resources as staticResources, trainings as staticTrainings } from "../src/data.js";
+import { persistBytes } from "./mediaStore.mjs";
 import { isBlockedUpload } from "./shield.mjs";
 
 const invitationText = `Почитувани,
@@ -17,17 +17,26 @@ function fileId(prefix) {
   return `${prefix}-${randomBytes(6).toString("hex")}`;
 }
 
-function saveUpload(uploadDir, name, data) {
+function storedLink(value) {
+  const match = String(value || "").match(/^\/api\/media\/file\/([^/?]+)$/);
+  if (!match) return "";
+  try {
+    const key = decodeURIComponent(match[1]);
+    if (!/^files\/[\w.\-]+$/.test(key)) return "";
+    return `/api/media/file/${encodeURIComponent(key)}`;
+  } catch {
+    return "";
+  }
+}
+
+async function saveUpload(uploadDir, name, data, root) {
   const clean = path.basename(String(name || "datoteka")).replace(/[^\w.\- ()\u0400-\u04FF]+/g, "") || "datoteka";
   if (isBlockedUpload(clean)) return { error: "Овој вид датотека не е дозволен." };
   const raw = String(data || "");
   const base64 = raw.includes(",") ? raw.split(",").pop() : raw;
   const buffer = Buffer.from(base64, "base64");
   if (!buffer.length || buffer.length > 8 * 1024 * 1024) return { error: "Датотеката мора да биде до 8 MB." };
-  const stored = `${fileId("f")}-${clean.replace(/\s+/g, "-")}`;
-  if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
-  writeFileSync(path.join(uploadDir, stored), buffer);
-  return { url: `/uploads/${stored}`, size: buffer.length, name: clean };
+  return persistBytes({ root, uploadDir, name: clean, buffer });
 }
 
 export async function ensureLearning(pool) {
@@ -165,7 +174,7 @@ async function bumpDownload(pool, kind, itemId, actor, recordHit, foldGuest = ""
   return downloads;
 }
 
-export async function handleLearning({ pool, method, url, req, body, requireUser, requireAdmin, text, uploadDir, actorFrom, recordHit }) {
+export async function handleLearning({ pool, method, url, req, body, requireUser, requireAdmin, text, uploadDir, root, actorFrom, recordHit }) {
   if (method === "GET" && url === "/api/resources") {
     const counts = await pool.query("SELECT item_id, downloads FROM download_counts WHERE kind = 'resource'");
     const tally = new Map(counts.rows.map((row) => [row.item_id, row.downloads]));
@@ -207,9 +216,9 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const type = text(body.type, 12) || "PDF";
     const detail = text(body.detail, 2000);
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
-    let fileUrl = "";
-    if (body.data) {
-      const saved = saveUpload(uploadDir, body.name || `${title}.${type.toLowerCase()}`, body.data);
+    let fileUrl = storedLink(body.url);
+    if (!fileUrl && body.data) {
+      const saved = await saveUpload(uploadDir, body.name || `${title}.${type.toLowerCase()}`, body.data, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       fileUrl = saved.url;
     }
@@ -258,10 +267,10 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const folder = text(body.folder, 80) || "Други документи";
     const detail = text(body.body, 2000);
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
-    let fileUrl = "";
-    let sizeLabel = "12 KB";
-    if (body.data) {
-      const saved = saveUpload(uploadDir, body.name || title, body.data);
+    let fileUrl = storedLink(body.url);
+    let sizeLabel = body.size ? (Number(body.size) > 1024 * 1024 ? `${(Number(body.size) / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(Number(body.size) / 1024))} KB`) : "12 KB";
+    if (!fileUrl && body.data) {
+      const saved = await saveUpload(uploadDir, body.name || title, body.data, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       fileUrl = saved.url;
       sizeLabel = saved.size > 1024 * 1024 ? `${(saved.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(saved.size / 1024))} KB`;
@@ -311,7 +320,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
     let videoUrl = text(body.videoUrl, 2000);
     if (body.data) {
-      const saved = saveUpload(uploadDir, body.name || "obuka.mp4", body.data);
+      const saved = await saveUpload(uploadDir, body.name || "obuka.mp4", body.data, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       videoUrl = saved.url;
     }
@@ -462,7 +471,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
     let videoUrl = text(body.videoUrl, 2000);
     if (body.data) {
-      const saved = saveUpload(uploadDir, body.name || "obuka.mp4", body.data);
+      const saved = await saveUpload(uploadDir, body.name || "obuka.mp4", body.data, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       videoUrl = saved.url;
     }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../compositor/AppCompositor";
 import { api } from "../api";
-import { uploadVideoFile } from "../media";
+import { placeFile, uploadVideoFile } from "../media";
 import TrainingAdmin from "../components/TrainingAdmin";
 import FeedAdmin from "../components/FeedAdmin";
 import EventAdmin from "../components/EventAdmin";
@@ -323,13 +323,12 @@ export default function Admin() {
               }
               const form = event.currentTarget;
               run(async () => {
-                const data = await new Promise((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(reader.result);
-                  reader.onerror = () => reject(new Error("Датотеката не може да се прочита."));
-                  reader.readAsDataURL(file);
+                const placed = await placeFile(file);
+                await api.addAttachment({
+                  name: file.name,
+                  mime: file.type,
+                  ...(placed.url ? { url: placed.url, size: placed.size } : { data: placed.data }),
                 });
-                await api.addAttachment({ name: file.name, mime: file.type, data });
                 form.reset();
                 setNotice("Прилогот е прикачен.");
               });

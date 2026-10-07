@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { FileSpreadsheet, FileText, ScrollText, Search, Stamp } from "lucide-react";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
-import { downloadText, readDataUrl } from "../download";
+import { downloadText } from "../download";
+import { placeFile } from "../media";
 import { Button, PageHeader } from "../components/ui";
 
 const folders = ["Сите", "Наставни материјали", "Формулари", "Водичи", "Програми", "Други документи"];
@@ -72,8 +73,12 @@ export default function Documents({ embedded = false }) {
             try {
               const payload = { ...draft };
               if (file) {
-                payload.data = await readDataUrl(file);
-                payload.name = file.name;
+                const placed = await placeFile(file);
+                payload.name = placed.name;
+                if (placed.url) {
+                  payload.url = placed.url;
+                  payload.size = placed.size;
+                } else payload.data = placed.data;
               }
               await api.addDocument(payload);
               setDraft({ title: "", type: "PDF", folder: "Други документи", body: "" });
