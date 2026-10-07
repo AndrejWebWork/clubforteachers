@@ -1,0 +1,19 @@
+{
+  "name": "Клуб на наставници",
+  "short_name": "Клуб на наставници",
+  "description": "Интерна веб-платформа за идеи, ресурси, обуки и професионална заедница на наставници.",
+  "lang": "mk",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f8f8",
+  "theme_color": "#1c5c66",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
