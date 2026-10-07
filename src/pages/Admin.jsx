@@ -146,7 +146,7 @@ export default function Admin() {
       {tab === "events" && <EventAdmin />}
 
       {tab === "accounts" && (
-        <div className="grid gap-5 min-[1100px]:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="admin-split form-wide">
           <form
             className="panel grid gap-3"
             onSubmit={(event) => {
@@ -209,7 +209,7 @@ export default function Admin() {
               )}
             </form>
             {imported.length > 0 && (
-              <div className="mb-5 overflow-x-auto">
+              <div className="added-list mb-5 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="text-brand-deep">
@@ -231,7 +231,7 @@ export default function Admin() {
               </div>
             )}
             <h2 className="section-heading">Членови</h2>
-            <div className="divide-y">
+            <div className="added-list divide-y">
               {accounts.map((account) => (
                 <div key={account.id} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
                   <div>
@@ -299,7 +299,7 @@ export default function Admin() {
           <section className="panel">
             <h2 className="section-heading">Додадени видеа</h2>
             {videos.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема видеа.</p>}
-            <div className="divide-y">
+            <div className="added-list divide-y">
             {videos.map((video) => (
               <div key={video.id} className="py-3">
                 <div className="flex items-start justify-between gap-3">
@@ -348,7 +348,7 @@ export default function Admin() {
           <section className="panel">
             <h2 className="section-heading">Додадени прилози</h2>
             {files.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема прилози.</p>}
-            <div className="divide-y">
+            <div className="added-list divide-y">
             {files.map((file) => (
               <div key={file.id} className="flex items-center justify-between gap-3 py-3">
                 <a className="font-bold text-brand-deep" href={file.url} download>{file.name}</a>
@@ -381,7 +381,7 @@ export default function Admin() {
               Сите наставници
             </label>
             {!mailForm.allTeachers && (
-              <div className="grid gap-1">
+              <div className="added-list grid gap-1">
                 {accounts.filter((account) => account.role === "teacher").map((account) => (
                   <label key={account.id} className="flex items-center gap-2 text-sm">
                     <input
@@ -430,7 +430,7 @@ export default function Admin() {
           <section className="panel">
             <h2 className="section-heading">Испратени</h2>
             {messages.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема испратени пораки.</p>}
-            <div className="divide-y">
+            <div className="added-list divide-y">
               {messages.map((item) => (
                 <article key={item.id} className="py-3">
                   <b className="text-brand-deep">{item.subject}</b>

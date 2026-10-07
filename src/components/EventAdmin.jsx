@@ -21,7 +21,7 @@ export default function EventAdmin() {
   }, []);
 
   return (
-    <div className="grid gap-5 min-[1100px]:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="admin-split">
       <SuccessPop title={done?.title} text={done?.text} onClose={() => setDone(null)} />
       <form
         className="panel grid gap-3"
@@ -62,7 +62,7 @@ export default function EventAdmin() {
       </form>
       <section className="panel">
         <h2 className="section-heading">Настани</h2>
-        <div className="divide-y">
+        <div className="added-list divide-y">
           {items.map((item) => (
             <div key={item.id} className="flex items-start justify-between gap-3 py-3">
               <div>

@@ -178,7 +178,7 @@ export default function Profile() {
                   const mail = result.invitation;
                   window.location.href = `mailto:${mail.to}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.body)}`;
                   setInviteEmail("");
-                  setInviteNote("Поканата е подготвена и се отвора во вашата е-пошта.");
+                  setInviteNote("Поканата е подготвена и се отвора во вашата е-пошта. Испратете ја оттаму.");
                 } catch (reason) {
                   setInviteNote(reason.message);
                 }

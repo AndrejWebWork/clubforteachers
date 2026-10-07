@@ -277,7 +277,7 @@ export default function Layout({ children }) {
             {invited ? (
               <>
                 <h2 className="text-lg font-black text-brand-deep">Поканата е испратена!</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Му испративме покана на {invited}. Ви благодариме што го споделувате Клубот.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Поканата за {invited} е подготвена и се отвора во вашата е-пошта. Испратете ја оттаму. Ви благодариме што го споделувате Клубот.</p>
                 <Button className="mt-4" onClick={() => { setInviteOpen(false); setInvited(""); }}>Во ред</Button>
               </>
             ) : (

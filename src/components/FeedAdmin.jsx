@@ -24,7 +24,7 @@ export default function FeedAdmin({ kind }) {
   }, [kind]);
 
   return (
-    <div className="grid gap-5 min-[1100px]:grid-cols-[300px_minmax(0,1fr)]">
+    <div className={`admin-split${notice ? "" : " form-wide"}`}>
       <form
         className="panel grid gap-3"
         onSubmit={(event) => {
@@ -83,7 +83,7 @@ export default function FeedAdmin({ kind }) {
       </form>
       <section className="panel">
         <h2 className="section-heading">{notice ? "Објавени огласи" : "Термини"}</h2>
-        <div className="divide-y">
+        <div className="added-list divide-y">
           {items.map((item) => (
             <div key={item.id} className="py-3">
               <b className="text-brand-deep">{item.title}</b>

@@ -96,7 +96,7 @@ export default function TrainingAdmin() {
       <section className="panel">
         <h2 className="section-heading">Додадени обуки</h2>
         {trainings.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема обуки.</p>}
-        <div className="divide-y">
+        <div className="added-list divide-y">
         {trainings.map((item) => (
           <div key={item.id} className="py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -149,6 +149,7 @@ export default function TrainingAdmin() {
           }}
         >
           <h2 className="section-heading">Тест за „{editing.title}“</h2>
+          <div className="added-list grid gap-4">
           {questions.map((question, index) => (
             <fieldset key={index} className="grid gap-2 rounded-md border p-3">
               <input className={inputClass} placeholder="Прашање" value={question.prompt} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item))} />
@@ -161,6 +162,7 @@ export default function TrainingAdmin() {
               <button type="button" className="row-delete w-fit" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Отстрани прашање</button>
             </fieldset>
           ))}
+          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => setQuestions((current) => [...current, emptyQuestion()])}>Додај прашање</Button>
             <Button type="submit">Зачувај тест</Button>

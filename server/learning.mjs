@@ -4,14 +4,22 @@ import { documents as staticDocuments, resources as staticResources, trainings a
 import { dropStored, persistBytes } from "./mediaStore.mjs";
 import { isBlockedUpload } from "./shield.mjs";
 
-const invitationText = `Почитувани,
+const invitationSubject = "Покана за Клубот на наставници";
 
-Ве покануваме да се приклучите на Клубот на наставници. Ова е заедница за идеи, ресурси, обуки и професионална поддршка меѓу наставници.
+function invitationText(fromName) {
+  const who = fromName ? `${fromName} ве поканува` : "Ве покануваме";
+  return `Почитувани,
 
-Отворете ја платформата и најавете се со сметката што ќе ви ја отвори раководителот на клубот.
+${who} да се приклучите на Клубот на наставници.
+
+Клубот е заедница за идеи, ресурси, обуки и професионална поддршка меѓу наставници. Тука се споделуваат материјали, се следат обуки и се разменуваат искуства од училницата.
+
+Отворете ја платформата: https://clubforteachers.vercel.app
+Најавете се со сметката што ќе ви ја отвори раководителот на клубот.
 
 Со почит,
 Клуб на наставници`;
+}
 
 function fileId(prefix) {
   return `${prefix}-${randomBytes(6).toString("hex")}`;
@@ -542,19 +550,20 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     if (auth.error) return auth.error;
     const email = text(body.email, 120).toLowerCase();
     if (!email.includes("@")) return { status: 400, body: { error: "Внесете валидна е-пошта." } };
+    const letter = invitationText(auth.user.name);
     await pool.query("INSERT INTO invitations (id, from_name, to_email, body, sent_at) VALUES ($1,$2,$3,$4, NOW())", [
       fileId("inv"),
       auth.user.name,
       email,
-      invitationText,
+      letter,
     ]);
     return {
       status: 201,
       body: {
         invitation: {
           to: email,
-          subject: "Покана за Клубот на наставници",
-          body: invitationText,
+          subject: invitationSubject,
+          body: letter,
         },
       },
     };

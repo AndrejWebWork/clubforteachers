@@ -142,8 +142,23 @@ button, input, textarea, select { font-family: inherit; }
 }
 @media (min-width: 1100px) {
   .admin-split {
-    grid-template-columns: minmax(28rem, 1.35fr) minmax(20rem, 0.85fr);
+    grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
     gap: 1.5rem;
+  }
+  .admin-split.form-wide {
+    grid-template-columns: minmax(0, 1.65fr) minmax(15rem, 0.7fr);
+  }
+}
+.added-list {
+  max-height: min(20rem, 46dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--brand-deep) 45%, transparent) transparent;
+}
+@media (min-width: 1100px) {
+  .added-list {
+    max-height: min(40rem, calc(100dvh - 10rem));
   }
 }
 .section-heading {
