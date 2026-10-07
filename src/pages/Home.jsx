@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Calendar, Eye, FileText, FolderOpen, Link2, Megaphone, MessageCircle, Newspaper, Presentation, Wrench } from "lucide-react";
 import { api } from "../api";
+import { MONTHS, calendarToday, entryStamp, monthGrid } from "../calendar";
 import { images } from "../data";
 import { useApp } from "../compositor/AppCompositor";
 import { Avatar, Button, SectionHead, Signal } from "../components/ui";
 
-const juneDays = [26, 27, 28, 29, 30, 31, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 1, 2, 3, 4, 5, 6];
 const tone = { Обуки: "training", Настани: "event", Работилници: "workshop", Рокови: "deadline", "Други активности": "other" };
 
 const news = [
@@ -41,7 +41,10 @@ export default function Home() {
     api.calendar().then((data) => setCalendarItems(data.items || [])).catch(() => setCalendarItems([]));
   }, []);
   const deadlines = notices.filter((item) => item.priority).length;
-  const upcoming = calendarItems.filter((item) => item.day >= 18).slice(0, 3);
+  const today = calendarToday();
+  const homeMonth = monthGrid(today.getFullYear(), today.getMonth());
+  const todayStamp = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const upcoming = calendarItems.filter((item) => entryStamp(item) >= todayStamp).sort((left, right) => entryStamp(left) - entryStamp(right)).slice(0, 3);
   return (
     <div className="space-y-5">
       <section className="hero-compact">
@@ -129,17 +132,17 @@ export default function Home() {
 
       <div className="grid gap-5 min-[1100px]:grid-cols-2">
         <section className="panel min-w-0">
-          <SectionHead icon={<Calendar className="h-5 w-5" />} title="Календар · Јуни 2025" linkLabel="Цел календар" to="/kalendar" />
+          <SectionHead icon={<Calendar className="h-5 w-5" />} title={`Календар · ${MONTHS[today.getMonth()]} ${today.getFullYear()}`} linkLabel="Цел календар" to="/kalendar" />
           <div className="grid gap-5 min-[700px]:grid-cols-2">
             <div className="grid grid-cols-7 text-center text-xs">
               {["П", "В", "С", "Ч", "П", "С", "Н"].map((day, index) => <b key={`${day}-${index}`} className="text-muted-foreground">{day}</b>)}
-              {juneDays.map((day, index) => {
-                const inMonth = index >= 6 && index <= 35;
-                const marked = inMonth && calendarItems.some((item) => item.day === day);
-                const kind = inMonth ? calendarItems.find((item) => item.day === day)?.category : null;
+              {homeMonth.map((cell, index) => {
+                const marked = cell.inMonth && calendarItems.some((item) => Number(item.year) === today.getFullYear() && Number(item.month) === today.getMonth() + 1 && Number(item.day) === cell.day);
+                const kind = marked ? calendarItems.find((item) => Number(item.year) === today.getFullYear() && Number(item.month) === today.getMonth() + 1 && Number(item.day) === cell.day)?.category : null;
+                const isToday = cell.inMonth && cell.day === today.getDate();
                 return (
-                  <span key={`${day}-${index}`} className={`relative mx-auto mt-1.5 grid h-7 w-7 place-items-center rounded-full ${inMonth && day === 18 ? "bg-brand-deep font-black text-primary-foreground" : inMonth ? "text-brand-deep" : "text-muted-foreground/40"}`}>
-                    {day}
+                  <span key={`${cell.day}-${index}`} className={`relative mx-auto mt-1.5 grid h-7 w-7 place-items-center rounded-full ${isToday ? "bg-brand-deep font-black text-primary-foreground" : cell.inMonth ? "text-brand-deep" : "text-muted-foreground/40"}`}>
+                    {cell.day}
                     {marked && <i className={`cal-dot ${tone[kind]}`} />}
                   </span>
                 );
@@ -148,7 +151,7 @@ export default function Home() {
             <div className="space-y-2">
               {upcoming.map((item) => (
                 <div key={item.id} className={`cal-item ${tone[item.category]}`}>
-                  <b className="text-xs text-brand-deep">{item.day} Јун · {item.time}</b>
+                  <b className="text-xs text-brand-deep">{item.day} {MONTHS[item.month - 1]} {item.year} · {item.time}</b>
                   <p className="text-sm font-bold leading-5 text-brand-deep">{item.title}</p>
                 </div>
               ))}

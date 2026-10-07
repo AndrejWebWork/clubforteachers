@@ -1,6 +1,6 @@
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgePlus, CalendarClock, CircleCheck, DoorOpen, Flag, Hourglass, Search, Siren, Upload } from "lucide-react";
+import { ArrowRight, BadgePlus, CalendarClock, CircleAlert, CircleCheck, DoorOpen, Flag, Hourglass, Search, Siren, Upload } from "lucide-react";
 
 const ActionContext = createContext(null);
 
@@ -65,6 +65,38 @@ export function SuccessPop({ title, text, onClose }) {
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
         <Button className="mt-4" onClick={onClose}>Во ред</Button>
       </div>
+    </div>
+  );
+}
+
+export function uploadFailed(message) {
+  window.dispatchEvent(new CustomEvent("club-upload-failed", { detail: message || "Качувањето не успеа." }));
+}
+
+export function UploadToast() {
+  const [note, setNote] = useState(null);
+  useEffect(() => {
+    let timer = 0;
+    const show = (event) => {
+      setNote({ id: Date.now(), text: event.detail || "Качувањето не успеа." });
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setNote(null), 5600);
+    };
+    window.addEventListener("club-upload-failed", show);
+    return () => {
+      window.removeEventListener("club-upload-failed", show);
+      window.clearTimeout(timer);
+    };
+  }, []);
+  if (!note) return null;
+  return (
+    <div key={note.id} className="upload-toast" role="status">
+      <CircleAlert className="h-5 w-5 shrink-0" />
+      <p>
+        <b>Качувањето не успеа</b>
+        <span>{note.text}</span>
+      </p>
+      <button type="button" className="toast-close" onClick={() => setNote(null)} aria-label="Затвори">×</button>
     </div>
   );
 }

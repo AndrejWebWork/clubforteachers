@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { MONTHS } from "../calendar";
 import { calendarCategories, noticeCategories } from "../data";
 import { Button } from "./ui";
 
@@ -11,7 +12,7 @@ export default function FeedAdmin({ kind }) {
   const [error, setError] = useState("");
   const [form, setForm] = useState(notice
     ? { title: "", category: "Повик", day: "", month: "", status: "НОВО", priority: false, text: "" }
-    : { title: "", category: "Настани", day: "", time: "", location: "", text: "" });
+    : { title: "", category: "Настани", date: "", time: "", location: "", text: "" });
 
   function load() {
     const request = notice ? api.notices() : api.calendar();
@@ -29,12 +30,16 @@ export default function FeedAdmin({ kind }) {
         onSubmit={(event) => {
           event.preventDefault();
           setError("");
-          const request = notice ? api.addNotice(form) : api.addCalendar(form);
+          const entry = notice ? form : (() => {
+            const [year, month, day] = String(form.date).split("-").map(Number);
+            return { ...form, year, month, day };
+          })();
+          const request = notice ? api.addNotice(form) : api.addCalendar(entry);
           request
             .then(() => {
               setForm(notice
                 ? { title: "", category: "Повик", day: "", month: "", status: "НОВО", priority: false, text: "" }
-                : { title: "", category: "Настани", day: "", time: "", location: "", text: "" });
+                : { title: "", category: "Настани", date: "", time: "", location: "", text: "" });
               return load();
             })
             .catch((reason) => setError(reason.message));
@@ -57,7 +62,7 @@ export default function FeedAdmin({ kind }) {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            <input className={inputClass} type="number" min="1" max="31" placeholder="Ден" value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value })} required />
+            <input className={inputClass} type="date" min="2026-01-01" max="2027-12-31" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required />
             <input className={inputClass} placeholder="Час" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required />
           </div>
         )}
@@ -82,7 +87,7 @@ export default function FeedAdmin({ kind }) {
           {items.map((item) => (
             <div key={item.id} className="py-3">
               <b className="text-brand-deep">{item.title}</b>
-              <p className="text-sm text-muted-foreground">{notice ? `${item.day} ${item.month} · ${item.category}` : `${item.day} Јун · ${item.time} · ${item.category}`}</p>
+              <p className="text-sm text-muted-foreground">{notice ? `${item.day} ${item.month} · ${item.category}` : `${item.day} ${MONTHS[(item.month || 1) - 1]} ${item.year || ""} · ${item.time} · ${item.category}`}</p>
             </div>
           ))}
         </div>

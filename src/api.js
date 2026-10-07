@@ -20,6 +20,7 @@ async function request(path, { method = "GET", body } = {}) {
   const response = await fetch(path, {
     method,
     headers,
+    credentials: "include",
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await response.json().catch(() => ({}));

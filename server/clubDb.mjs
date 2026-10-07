@@ -406,7 +406,7 @@ async function handle(method, url, req) {
   await ensureReady();
 
   const mediaFile = url.match(/^\/api\/media\/file\/([^/]+)$/);
-  if (method === "GET" && mediaFile) {
+  if ((method === "GET" || method === "HEAD") && mediaFile) {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
     const { fileKey, mediaConfig, watchUrl } = await import("./mediaStore.mjs");
@@ -670,7 +670,7 @@ async function handle(method, url, req) {
     const forum = await unreadReplies(user);
     const { notificationBundle } = await import("./feeds.mjs");
     const bundle = await notificationBundle(pool, actor, forum);
-    return { status: 200, body: { views, unread: bundle.count, items: bundle.items } };
+    return { status: 200, body: { views, unread: bundle.notices, notices: bundle.notices, items: bundle.items } };
   }
 
   const replyMatch = url.match(/^\/api\/posts\/([^/]+)\/replies$/);
@@ -876,9 +876,9 @@ async function handle(method, url, req) {
       const { rows } = await pool.query("SELECT name, email FROM users WHERE access = 'teacher'");
       recipients = rows;
     } else {
-      const ids = Array.isArray(body.recipientIds) ? body.recipientIds.map(String) : [];
+      const ids = Array.isArray(body.recipientIds) ? body.recipientIds.map(String).filter((item) => /^[0-9a-f-]{36}$/i.test(item)) : [];
       if (ids.length) {
-        const { rows } = await pool.query("SELECT name, email FROM users WHERE id = ANY($1::text[])", [ids]);
+        const { rows } = await pool.query("SELECT name, email FROM users WHERE id = ANY($1::uuid[])", [ids]);
         recipients = rows;
       }
     }
@@ -948,6 +948,8 @@ async function handle(method, url, req) {
       : await feeds.addCalendarEntry(pool, id("cal"), {
         title: text(body.title, 140),
         category: text(body.category, 40),
+        year: body.year,
+        month: body.month,
         day: body.day,
         time: text(body.time, 8),
         location: text(body.location, 80),
@@ -1016,6 +1018,7 @@ export function clubApiMiddleware() {
         res.statusCode = result.status;
         res.setHeader("Location", result.redirect);
         res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
         res.end();
         return;
       }

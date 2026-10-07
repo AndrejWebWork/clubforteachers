@@ -6,7 +6,7 @@ import { placeFile, uploadVideoFile } from "../media";
 import TrainingAdmin from "../components/TrainingAdmin";
 import FeedAdmin from "../components/FeedAdmin";
 import EventAdmin from "../components/EventAdmin";
-import { Button, FilePick, PageHeader, SuccessPop } from "../components/ui";
+import { Button, FilePick, PageHeader, SuccessPop, uploadFailed } from "../components/ui";
 
 const tabs = [
   ["accounts", "Сметки"],
@@ -82,14 +82,16 @@ export default function Admin() {
     load().catch((reason) => setError(reason.message));
   }, [isAdmin]);
 
-  async function run(action) {
+  async function run(action, upload = false) {
     setError("");
     setNotice("");
     try {
       await action();
       await load();
     } catch (reason) {
+      setUploadProgress(0);
       setError(reason.message);
+      if (upload) uploadFailed(reason.message);
     }
   }
 
@@ -197,7 +199,7 @@ export default function Admin() {
                   memberFile.current.value = "";
                   const missed = data.skipped.length ? ` Прескокнати: ${data.skipped.length}.` : "";
                   setNotice(`Отворени се ${data.created.length} сметки.${missed}`);
-                });
+                }, true);
               }}
             >
               <FilePick inputRef={memberFile} accept=".csv,.txt,.docx,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required />
@@ -270,7 +272,7 @@ export default function Admin() {
                   title: "Видеото е прикачено",
                   text: `„${title}“ е успешно додадено. Наставниците го гледаат во Материјали.`,
                 });
-              });
+              }, Boolean(file));
             }}
           >
             <h2 className="section-heading">Ново видео</h2>
@@ -319,6 +321,7 @@ export default function Admin() {
               if (!file) return;
               if (file.size > 4 * 1024 * 1024) {
                 setError("Прилогот мора да биде до 4 MB.");
+                uploadFailed("Прилогот мора да биде до 4 MB.");
                 return;
               }
               const form = event.currentTarget;
@@ -331,7 +334,7 @@ export default function Admin() {
                 });
                 form.reset();
                 setNotice("Прилогот е прикачен.");
-              });
+              }, true);
             }}
           >
             <h2 className="section-heading">Прикачи датотека</h2>

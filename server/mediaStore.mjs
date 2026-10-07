@@ -89,8 +89,9 @@ async function signedCall(config, method, resource, payload = "", query = "") {
   });
 }
 
-export async function ensureBucket(config) {
-  if (config.provider !== "filebase") return;
+const readyBuckets = new Map();
+
+async function prepareBucket(config) {
   const listed = await signedCall(config, "GET", "/");
   const xml = await listed.text();
   if (!listed.ok) {
@@ -106,8 +107,20 @@ export async function ensureBucket(config) {
     throw Object.assign(new Error(code), { status: 502 });
   }
   }
-  const cors = `<?xml version="1.0" encoding="UTF-8"?><CORSConfiguration><CORSRule><AllowedOrigin>*</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>`;
+  const cors = `<?xml version="1.0" encoding="UTF-8"?><CORSConfiguration><CORSRule><AllowedOrigin>*</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><ExposeHeader>Content-Length</ExposeHeader><ExposeHeader>Content-Type</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>`;
   await signedCall(config, "PUT", `/${config.bucket}`, cors, "cors");
+}
+
+export function ensureBucket(config) {
+  if (config.provider !== "filebase") return Promise.resolve();
+  const existing = readyBuckets.get(config.bucket);
+  if (existing) return existing;
+  const pending = prepareBucket(config).catch((error) => {
+    readyBuckets.delete(config.bucket);
+    throw error;
+  });
+  readyBuckets.set(config.bucket, pending);
+  return pending;
 }
 
 export function videoKey(originalName) {

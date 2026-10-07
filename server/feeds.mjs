@@ -65,6 +65,8 @@ export async function ensureFeeds(pool) {
       forum boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL
     );
+    ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_year integer NOT NULL DEFAULT 2026;
+    ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_month integer NOT NULL DEFAULT 6;
     CREATE TABLE IF NOT EXISTS feed_seen (
       actor text NOT NULL,
       kind text NOT NULL,
@@ -88,8 +90,8 @@ export async function ensureFeeds(pool) {
     for (const [index, item] of calendarItems.entries()) {
       const createdAt = new Date(Date.UTC(2025, 5, 1, 12, 0, 0) - index * 3600000).toISOString();
       await pool.query(
-        `INSERT INTO calendar_entries (id, day, title, category, time, location, body, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        `INSERT INTO calendar_entries (id, day, entry_year, entry_month, title, category, time, location, body, created_at)
+         VALUES ($1,$2,2026,6,$3,$4,$5,$6,$7,$8)`,
         [item.id, item.day, item.title, item.category, item.time, item.location, item.text, createdAt],
       );
     }
@@ -114,6 +116,8 @@ function mapCalendar(row) {
   return {
     id: row.id,
     day: row.day,
+    year: row.entry_year,
+    month: row.entry_month,
     title: row.title,
     category: row.category,
     time: row.time,
@@ -129,7 +133,7 @@ export async function listNotices(pool) {
 }
 
 export async function listCalendar(pool) {
-  const { rows } = await pool.query("SELECT * FROM calendar_entries ORDER BY day, time");
+  const { rows } = await pool.query("SELECT * FROM calendar_entries ORDER BY entry_year, entry_month, day, time");
   return rows.map(mapCalendar);
 }
 
@@ -171,19 +175,23 @@ export async function addNotice(pool, id, item) {
 }
 
 export async function addCalendarEntry(pool, id, item) {
+  const year = Number(item.year);
+  const month = Number(item.month);
   const day = Number(item.day);
+  const last = new Date(year, month, 0).getDate();
   if (!calendarCategories.includes(item.category)) return { error: "Изберете категорија од списокот." };
-  if (!item.title || !item.body || !Number.isInteger(day) || day < 1 || day > 31) {
-    return { error: "Потребни се наслов, ден и опис." };
+  if (![2026, 2027].includes(year) || month < 1 || month > 12 || !Number.isInteger(day) || day < 1 || day > last) {
+    return { error: "Датумот мора да биде во 2026 или 2027." };
   }
+  if (!item.title || !item.body) return { error: "Потребни се наслов и опис." };
   const createdAt = new Date().toISOString();
   await pool.query(
-    `INSERT INTO calendar_entries (id, day, title, category, time, location, body, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-    [id, day, item.title, item.category, item.time || "12:00", item.location || "Онлајн", item.body, createdAt],
+    `INSERT INTO calendar_entries (id, day, entry_year, entry_month, title, category, time, location, body, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [id, day, year, month, item.title, item.category, item.time || "12:00", item.location || "Онлајн", item.body, createdAt],
   );
   await notify(pool, { column: "calendar", title: "Ново во календарот", body: item.title, url: "/kalendar" });
-  return { entry: { id, day, title: item.title, category: item.category, time: item.time || "12:00", location: item.location || "Онлајн", text: item.body, createdAt } };
+  return { entry: { id, day, year, month, title: item.title, category: item.category, time: item.time || "12:00", location: item.location || "Онлајн", text: item.body, createdAt } };
 }
 
 export async function saveSubscription(pool, body, user) {

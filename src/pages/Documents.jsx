@@ -4,7 +4,7 @@ import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { downloadText } from "../download";
 import { placeFile } from "../media";
-import { Button, PageHeader } from "../components/ui";
+import { Button, PageHeader, uploadFailed } from "../components/ui";
 
 const folders = ["Сите", "Наставни материјали", "Формулари", "Водичи", "Програми", "Други документи"];
 
@@ -86,6 +86,7 @@ export default function Documents({ embedded = false }) {
               await load();
             } catch (reason) {
               setError(reason.message);
+              if (file) uploadFailed(reason.message);
             }
           }}
         >

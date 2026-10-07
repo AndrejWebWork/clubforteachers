@@ -5,7 +5,7 @@ import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { downloadText } from "../download";
 import { placeFile } from "../media";
-import { Button, PageHeader } from "../components/ui";
+import { Button, PageHeader, uploadFailed } from "../components/ui";
 
 const kinds = ["Сите", "Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"];
 const kindFromType = { PDF: "Прирачник", PPTX: "Презентација", DOCX: "Документ", LINK: "Линк", VIDEO: "Видео", WEB: "Алатка" };
@@ -83,6 +83,7 @@ export function Resources() {
               await load();
             } catch (reason) {
               setError(reason.message);
+              if (file) uploadFailed(reason.message);
             }
           }}
         >

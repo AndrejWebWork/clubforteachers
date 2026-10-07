@@ -27,7 +27,7 @@ import { pages } from "../site";
 import { useApp } from "../compositor/AppCompositor";
 import CookieConsent from "./CookieConsent";
 import { api } from "../api";
-import { Button } from "./ui";
+import { Button, UploadToast } from "./ui";
 import MotionRoot from "../motion/MotionRoot";
 
 const icons = {
@@ -45,7 +45,7 @@ const icons = {
 
 export default function Layout({ children }) {
   const { pathname } = useLocation();
-  const { profile, signedIn, isAdmin, menuOpen, setMenuOpen, startEdit, unreadCount, alerts, documents, topics, setCookiesOpen } = useApp();
+  const { profile, signedIn, isAdmin, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, setCookiesOpen } = useApp();
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -54,7 +54,6 @@ export default function Layout({ children }) {
   const [contactSent, setContactSent] = useState(false);
   const initials = profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2);
   const [query, setQuery] = useState("");
-  const [bellOpen, setBellOpen] = useState(false);
   const [pushState, setPushState] = useState(() => (typeof Notification === "undefined" ? "unsupported" : Notification.permission));
   const navigate = useNavigate();
 
@@ -198,29 +197,14 @@ export default function Layout({ children }) {
           </label>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
-            <div className="relative">
-              <button type="button" className="bell-trigger" aria-label="Известувања" aria-expanded={bellOpen} onClick={() => setBellOpen((open) => !open)}>
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-yellow text-[10px] font-bold text-brand-ink">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {bellOpen && (
-                <div className="profile-menu bell-menu" role="menu">
-                  <p>Известувања</p>
-                  {alerts.length === 0 ? (
-                    <span className="bell-empty">Нема нови огласи, термини или одговори.</span>
-                  ) : alerts.map((item) => (
-                    <Link key={`${item.kind}-${item.title}`} to={item.to} onClick={() => setBellOpen(false)}>
-                      <small>{item.kind}</small>
-                      {item.title}
-                    </Link>
-                  ))}
-                </div>
+            <Link to="/oglasi" className="bell-trigger" aria-label="Огласна табла">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-yellow text-[10px] font-bold text-brand-ink">
+                  {unreadCount}
+                </span>
               )}
-            </div>
+            </Link>
             <div className="relative">
               {signedIn ? (
               <button
@@ -355,6 +339,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       )}
+      <UploadToast />
     </div>
   );
 }

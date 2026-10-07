@@ -2,6 +2,21 @@ import { getToken } from "./api";
 
 const LARGE_VIDEO = 800 * 1024 * 1024;
 
+function uploadError(xhr) {
+  if (!xhr.status) return "Прелистувачот не стигна до складот.";
+  let payload = {};
+  try {
+    payload = JSON.parse(xhr.responseText);
+  } catch {
+    payload = {};
+  }
+  if (payload.error) return payload.error;
+  const code = String(xhr.responseText || "").match(/<Code>([^<]+)<\/Code>/)?.[1] || "";
+  if (code === "EntityTooLarge" || xhr.status === 413) return "Датотеката е преголема за едно качување.";
+  if (xhr.status === 403 || code === "AccessDenied" || code === "SignatureDoesNotMatch") return "Складот ја одби датотеката.";
+  return "Качувањето не успеа.";
+}
+
 function sendFile({ url, method, file, headers, onProgress }) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -13,19 +28,19 @@ function sendFile({ url, method, file, headers, onProgress }) {
       if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 100));
     };
     xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(uploadError(xhr)));
+        return;
+      }
       let payload = {};
       try {
         payload = JSON.parse(xhr.responseText);
       } catch {
         payload = {};
       }
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error(payload.error || "Качувањето не успеа."));
-        return;
-      }
       resolve(payload);
     };
-    xhr.onerror = () => reject(new Error("Качувањето не успеа."));
+    xhr.onerror = () => reject(new Error("Прелистувачот не стигна до складот."));
     xhr.send(file);
   });
 }
@@ -42,8 +57,10 @@ async function ticket(path, name) {
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name: name || "datoteka" }),
   });
-  if (!response.ok) return null;
-  return response.json();
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok) return payload;
+  if (response.status === 400 || response.status === 404) return null;
+  throw new Error(payload.error || "Качувањето не успеа.");
 }
 
 function sendPart(url, blob, onProgress) {
@@ -55,12 +72,12 @@ function sendPart(url, blob, onProgress) {
     };
     xhr.onload = () => {
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error("Качувањето не успеа."));
+        reject(new Error(uploadError(xhr)));
         return;
       }
       resolve(xhr.getResponseHeader("etag") || xhr.getResponseHeader("ETag") || "");
     };
-    xhr.onerror = () => reject(new Error("Качувањето не успеа."));
+    xhr.onerror = () => reject(new Error("Прелистувачот не стигна до складот."));
     xhr.send(blob);
   });
 }

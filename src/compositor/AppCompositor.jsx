@@ -168,7 +168,7 @@ export function AppCompositor({ children }) {
       try {
         const notes = await api.notifications();
         if (!cancel) {
-          setUnreadCount(notes.count || 0);
+          setUnreadCount(notes.notices || 0);
           setAlerts(notes.items || []);
         }
       } catch {
@@ -185,20 +185,20 @@ export function AppCompositor({ children }) {
   const markTopicView = useCallback(async (topicId) => {
     const data = await api.viewPost(topicId);
     setTopics((current) => current.map((topic) => (topic.id === topicId ? { ...topic, views: data.views } : topic)));
-    setUnreadCount(data.unread || 0);
+    setUnreadCount(data.notices || 0);
     if (data.items) setAlerts(data.items);
   }, []);
 
   const refreshAlerts = useCallback(async () => {
     const notes = await api.notifications();
-    setUnreadCount(notes.count || 0);
+    setUnreadCount(notes.notices || 0);
     setAlerts(notes.items || []);
     return notes;
   }, []);
 
   const seeFeed = useCallback(async (kind) => {
     const notes = await api.seeFeed(kind);
-    setUnreadCount(notes.count || 0);
+    setUnreadCount(notes.notices || 0);
     setAlerts(notes.items || []);
   }, []);
 
@@ -291,7 +291,7 @@ export function AppCompositor({ children }) {
           setMenuOpen(false);
           try {
             const notes = await api.notifications();
-            setUnreadCount(notes.count || 0);
+            setUnreadCount(notes.notices || 0);
             setAlerts(notes.items || []);
           } catch {
             setUnreadCount(0);

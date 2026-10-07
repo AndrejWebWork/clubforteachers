@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { uploadVideoFile } from "../media";
-import { Button, FilePick, SuccessPop } from "./ui";
+import { Button, FilePick, SuccessPop, uploadFailed } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 
@@ -25,14 +25,16 @@ export default function TrainingAdmin() {
     load().catch((reason) => setError(reason.message));
   }, []);
 
-  async function run(action) {
+  async function run(action, upload = false) {
     setError("");
     setNotice("");
     try {
       await action();
       await load();
     } catch (reason) {
+      setUploadProgress(0);
       setError(reason.message);
+      if (upload) uploadFailed(reason.message);
     }
   }
 
@@ -60,7 +62,7 @@ export default function TrainingAdmin() {
               title: "Обуката е прикачена",
               text: `„${title}“ е успешно поставена и е достапна кај обуките.`,
             });
-          });
+          }, Boolean(file));
         }}
       >
         <h2 className="section-heading">Нова обука</h2>
