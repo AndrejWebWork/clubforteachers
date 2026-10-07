@@ -175,7 +175,7 @@ export function AppCompositor({ children }) {
         if (!cancel) setUnreadCount(0);
       }
       if (!cancel) setAuthReady(true);
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") enablePush().catch(() => {});
+      if (loadConsent() && typeof Notification !== "undefined" && Notification.permission === "granted") enablePush().catch(() => {});
     })();
     return () => {
       cancel = true;
@@ -244,6 +244,7 @@ export function AppCompositor({ children }) {
         localStorage.setItem(CONSENT_KEY, JSON.stringify(next));
         setConsent({ necessary: true, analytics: next.analytics });
         setCookiesOpen(false);
+        enablePush({ welcome: true }).catch(() => {});
       },
       startEdit() {
         setEditing(true);

@@ -13,7 +13,7 @@ export default function CookieConsent() {
           Колачиња
         </h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Потребните записи ја паметат најавата и вашиот избор на овој уред. Отворање тема и симнување се бројат еднаш по човек, на самата страница.
+          Потребните записи ја паметат најавата и вашиот избор на овој уред. Со прифаќањето, клубот ве прашува за известувања и потоа сам ги испраќа новите огласи, термини и одговори.
         </p>
         <p className="mt-2 text-sm">
           <Link to="/kolacinja" className="font-bold text-primary hover:underline" onClick={() => setCookiesOpen(false)}>

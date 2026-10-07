@@ -17,7 +17,7 @@ function uploadError(xhr) {
   return "Качувањето не успеа.";
 }
 
-function sendFile({ url, method, file, headers, onProgress }) {
+function deliver({ url, method, file, headers, onProgress }) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, url);
@@ -45,6 +45,13 @@ function sendFile({ url, method, file, headers, onProgress }) {
   });
 }
 
+function sendFile(options) {
+  return deliver(options).catch((error) => {
+    if (error.message !== "Прелистувачот не стигна до складот.") throw error;
+    return deliver(options);
+  });
+}
+
 function authHeaders() {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -64,7 +71,7 @@ async function ticket(path, name) {
 }
 
 function sendPart(url, blob, onProgress) {
-  return new Promise((resolve, reject) => {
+  const once = () => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.upload.onprogress = (event) => {
@@ -79,6 +86,10 @@ function sendPart(url, blob, onProgress) {
     };
     xhr.onerror = () => reject(new Error("Прелистувачот не стигна до складот."));
     xhr.send(blob);
+  });
+  return once().catch((error) => {
+    if (error.message !== "Прелистувачот не стигна до складот.") throw error;
+    return once();
   });
 }
 

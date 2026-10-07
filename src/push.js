@@ -6,9 +6,10 @@ function keyBytes(value) {
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 }
 
-export async function enablePush() {
+export async function enablePush({ welcome = false } = {}) {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "unsupported";
   const registration = await navigator.serviceWorker.register("/sw.js");
+  await navigator.serviceWorker.ready;
   let permission = Notification.permission;
   if (permission === "default") permission = await Notification.requestPermission();
   if (permission !== "granted") return permission;
@@ -20,8 +21,9 @@ export async function enablePush() {
     applicationServerKey: keyBytes(publicKey),
   });
   const token = getToken();
-  await fetch("/api/push/subscribe", {
+  const response = await fetch("/api/push/subscribe", {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -31,7 +33,9 @@ export async function enablePush() {
       notices: true,
       calendar: true,
       forum: true,
+      welcome,
     }),
   });
+  if (!response.ok) return "failed";
   return "granted";
 }

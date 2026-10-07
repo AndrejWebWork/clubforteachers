@@ -206,6 +206,23 @@ export async function saveSubscription(pool, body, user) {
      ON CONFLICT (endpoint) DO UPDATE SET p256dh = $2, auth = $3, user_id = COALESCE($4, push_subscriptions.user_id), notices = true, calendar = true, forum = true`,
     [endpoint, p256dh, auth, user?.id || null],
   );
+  if (body.welcome && vapid()) {
+    try {
+      await webpush.sendNotification(
+        { endpoint, keys: { p256dh, auth } },
+        JSON.stringify({
+          title: "Клуб на наставници",
+          body: "Известувањата се вклучени. Новите огласи, термини и одговори ќе стигнуваат и кога страницата е затворена.",
+          url: "/oglasi",
+        }),
+      );
+    } catch (error) {
+      if (error.statusCode === 404 || error.statusCode === 410) {
+        await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
+        return { error: "Претплатата не можеше да се зачува." };
+      }
+    }
+  }
   return { ok: true };
 }
 

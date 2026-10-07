@@ -45,7 +45,7 @@ const icons = {
 
 export default function Layout({ children }) {
   const { pathname } = useLocation();
-  const { profile, signedIn, isAdmin, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, setCookiesOpen } = useApp();
+  const { profile, signedIn, isAdmin, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, setCookiesOpen, consent } = useApp();
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -241,7 +241,7 @@ export default function Layout({ children }) {
           </div>
         </header>
         <main id="sodrzina" className="mx-auto w-full max-w-[1500px] p-4 sm:p-6 lg:p-8">
-          {pushState === "default" && (
+          {consent && pushState === "default" && (
             <div className="push-banner">
               <p>Известувањата за огласната табла, календарот и форумот се вклучени. Дозволи ги во прелистувачот за да стигнуваат и кога страницата е затворена.</p>
               <button
