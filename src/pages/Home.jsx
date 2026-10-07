@@ -167,7 +167,7 @@ export default function Home() {
                 <Avatar name={item.author} size="sm" />
                 <span className="min-w-0 flex-1">
                   <b className="flex items-center gap-2 text-sm text-brand-deep">
-                    <span className="truncate">{item.title}</span>
+                    <span className="line-clamp-2 sm:truncate">{item.title}</span>
                     {item.isNew && <i className="unread-dot" aria-label="Ново" />}
                   </b>
                   <small className="text-muted-foreground">{item.category} · {item.time}</small>

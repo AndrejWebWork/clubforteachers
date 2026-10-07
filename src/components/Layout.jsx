@@ -159,13 +159,13 @@ export default function Layout({ children }) {
         </div>
       </aside>
       <div className="flex min-h-screen min-w-0 flex-col">
-        <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 border-b bg-background/95 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/95 px-4 py-3 backdrop-blur sm:h-[72px] sm:flex-nowrap sm:px-6 sm:py-0">
           <Button variant="ghost" size="icon" className="shrink-0 md:hidden" onClick={() => setOpen(true)}>
             <Menu />
             <span className="sr-only">Отвори мени</span>
           </Button>
-          <div className="hidden min-w-0 flex-1 justify-center sm:flex">
-          <label className="relative w-full max-w-xl">
+          <div className="order-3 min-w-0 basis-full sm:order-none sm:flex sm:min-w-0 sm:flex-1 sm:basis-auto sm:justify-center">
+          <label className="relative block w-full max-w-xl">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
             <input
               value={query}

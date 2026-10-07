@@ -63,7 +63,7 @@ export default function MotionRoot() {
     if (reduced()) return undefined;
     const press = (event) => {
       const el = event.target.closest("button, .pill, .recommend-btn, .see-all, .cta-link, .auth-switch a, a[href='/najava']");
-      if (!el || el.disabled || el.classList.contains("month-cell") || el.classList.contains("week-col") || el.classList.contains("pill") || el.classList.contains("sort-chip") || el.classList.contains("see-all") || el.classList.contains("cal-item") || el.classList.contains("profile-trigger") || el.classList.contains("bell-trigger") || el.classList.contains("lesson-btn") || el.classList.contains("file-pick-btn") || el.classList.contains("toast-close") || el.classList.contains("row-delete") || el.classList.contains("footer-link")) return;
+      if (!el || el.disabled || el.classList.contains("month-cell") || el.classList.contains("week-col") || el.classList.contains("pill") || el.classList.contains("sort-chip") || el.classList.contains("see-all") || el.classList.contains("cal-item") || el.classList.contains("profile-trigger") || el.classList.contains("bell-trigger") || el.classList.contains("lesson-btn") || el.classList.contains("file-pick-btn") || el.classList.contains("toast-close") || el.classList.contains("row-delete") || el.classList.contains("footer-link") || el.classList.contains("folder-3d")) return;
       gsap.fromTo(el, { scale: 0.96 }, { scale: 1, duration: 0.32, ease: "back.out(2.2)", overwrite: "auto" });
     };
     document.addEventListener("pointerup", press);

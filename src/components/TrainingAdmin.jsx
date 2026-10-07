@@ -12,7 +12,7 @@ export default function TrainingAdmin() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [done, setDone] = useState(null);
-  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "1 час и 30 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
   const [editing, setEditing] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [uploadNote, setUploadNote] = useState("");
@@ -56,7 +56,7 @@ export default function TrainingAdmin() {
             setUploadNote("");
             if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
             await api.addTraining(payload);
-            setForm({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+            setForm({ title: "", category: "Обука", description: "", duration: "1 час и 30 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
             setUploadNote("");
             node.reset();
             setDone({
@@ -71,7 +71,7 @@ export default function TrainingAdmin() {
         <textarea className="min-h-28 rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
         <div className="grid gap-3 sm:grid-cols-2">
           <input className={inputClass} placeholder="Категорија" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} />
-          <input className={inputClass} placeholder="Траење" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} />
+          <input className={`${inputClass} sm:col-span-2`} placeholder="Траење" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} />
           <input className={inputClass} placeholder="Формат" value={form.format} onChange={(event) => setForm({ ...form, format: event.target.value })} />
           <select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
             <option>Отворена</option>

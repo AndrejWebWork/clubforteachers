@@ -93,7 +93,7 @@ export function Forum() {
                 <span className="type-chip">{item.category}</span>
                 {item.isNew && <Signal label="НОВО" />}
               </div>
-              <h3 className="mt-1 truncate font-black text-brand-deep group-hover:text-primary">{item.title}</h3>
+              <h3 className="mt-1 font-black leading-snug text-brand-deep group-hover:text-primary sm:truncate">{item.title}</h3>
               <p className="text-xs text-muted-foreground">{item.author} · последна активност {item.time}</p>
             </div>
             <div className="hidden shrink-0 gap-5 text-sm font-bold text-brand-deep sm:flex">

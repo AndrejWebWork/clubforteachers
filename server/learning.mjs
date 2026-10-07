@@ -364,7 +364,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
         title,
         text(body.category, 80) || "Обука",
         description,
-        text(body.duration, 40) || "1 час",
+        text(body.duration, 40) || "1 час и 30 минути",
         text(body.format, 40) || "Онлајн",
         text(body.level, 40) || "Сите нивоа",
         text(body.status, 40) || "Отворена",

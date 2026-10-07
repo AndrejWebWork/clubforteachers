@@ -142,11 +142,11 @@ button, input, textarea, select { font-family: inherit; }
 }
 @media (min-width: 1100px) {
   .admin-split {
-    grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
+    grid-template-columns: minmax(0, 1.12fr) minmax(18rem, 1fr);
     gap: 1.5rem;
   }
   .admin-split.form-wide {
-    grid-template-columns: minmax(0, 1.65fr) minmax(15rem, 0.7fr);
+    grid-template-columns: minmax(0, 1.28fr) minmax(16rem, 0.92fr);
   }
 }
 .added-list {
@@ -686,11 +686,53 @@ button, input, textarea, select { font-family: inherit; }
 .module-folders {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 1.25rem 1.75rem;
+  align-items: end;
+  max-width: 58rem;
+  margin-inline: auto;
 }
-.module-folders .sort-chip {
-  min-height: 4.75rem;
-  font-size: 1rem;
+@media (width < 700px) {
+  .module-folders {
+    grid-template-columns: 1fr;
+  }
+}
+.folder-3d {
+  border: 0;
+  background: none;
+  padding: 0 0 0.35rem;
+  cursor: pointer;
+  perspective: 900px;
+}
+.folder-stage {
+  position: relative;
+  display: block;
+}
+.folder-3d img {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 86%;
+  filter: drop-shadow(0 16px 14px color-mix(in oklab, var(--brand-deep) 22%, transparent));
+  transition: transform 0.48s cubic-bezier(0.22, 0.8, 0.24, 1), filter 0.48s ease;
+}
+.folder-pages { display: none; }
+.folder-3d:hover img,
+.folder-3d:focus-visible img {
+  transform: rotateX(8deg);
+  filter: drop-shadow(0 26px 18px color-mix(in oklab, var(--brand-deep) 30%, transparent));
+}
+.folder-3d.open img {
+  transform: rotateX(5deg);
+}
+.folder-caption {
+  display: block;
+  margin-top: 0.15rem;
+  text-align: center;
+  color: var(--brand-deep);
+  font-size: 1.15rem;
+  font-weight: 900;
 }
 .module-note {
   margin-bottom: 1rem;
@@ -762,6 +804,9 @@ button, input, textarea, select { font-family: inherit; }
   pointer-events: none;
 }
 .hero-compact-img { display: none; }
+@media (width < 640px) {
+  .hero-compact:before { content: none; }
+}
 @media (width >= 768px) {
   .hero-compact { flex-direction: row; align-items: center; padding-right: calc(22% + 1.4rem); }
   .hero-compact-img {
@@ -830,24 +875,24 @@ button, input, textarea, select { font-family: inherit; }
 .board-date small { color: var(--brand-yellow); font-size: 0.58rem; font-weight: 900; }
 .cal-dot {
   border-radius: 999px;
-  width: 0.35rem;
-  height: 0.35rem;
+  width: 0.5rem;
+  height: 0.5rem;
   position: absolute;
   bottom: -1px;
   left: 50%;
   transform: translate(-50%);
 }
-.cal-dot.static { width: 0.6rem; height: 0.6rem; display: inline-block; position: static; transform: none; }
-.training { --c: var(--primary); }
-.event { --c: var(--brand-leaf); }
-.workshop { --c: oklch(62% 0.11 55); }
-.deadline { --c: var(--brand-coral); }
-.other { --c: var(--muted-foreground); }
+.cal-dot.static { width: 0.75rem; height: 0.75rem; display: inline-block; position: static; transform: none; }
+.training { --c: oklch(46% 0.17 210); }
+.event { --c: oklch(44% 0.17 152); }
+.workshop { --c: oklch(58% 0.19 55); }
+.deadline { --c: oklch(52% 0.21 28); }
+.other { --c: oklch(46% 0.18 300); }
 .cal-dot.training, .cal-dot.event, .cal-dot.workshop, .cal-dot.deadline, .cal-dot.other { background: var(--c); }
 .cal-item {
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--c, var(--primary));
-  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--c, var(--primary)) 35%, var(--border));
+  border-left: 5px solid var(--c, var(--primary));
+  background: color-mix(in oklab, var(--c, var(--primary)) 18%, var(--card));
   border-radius: 0.35rem;
   padding: 0.5rem 0.7rem;
   display: block;
@@ -1006,14 +1051,14 @@ button.cal-item:hover {
 .ev-chip {
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--card);
-  border: 1px solid color-mix(in oklab, var(--c) 45%, var(--border));
+  background: color-mix(in oklab, var(--c) 28%, white);
+  border: 1px solid color-mix(in oklab, var(--c) 62%, var(--border));
   border-radius: 0.2rem;
   padding: 0.1rem 0.3rem;
   overflow: hidden;
   max-width: 100%;
-  border-left: 3px solid var(--c);
-  color: var(--brand-deep);
+  border-left: 4px solid var(--c);
+  color: color-mix(in oklab, var(--c) 72%, var(--brand-ink));
   font-size: 0.62rem;
   font-weight: 800;
 }
@@ -1324,7 +1369,7 @@ main .grid > * { min-width: 0; }
   box-shadow: none;
 }
 
-button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item):not(.profile-trigger):not(.bell-trigger):not(.lesson-btn):not(.file-pick-btn):not(.toast-close):not(.row-delete):not(.footer-link):not(:disabled),
+button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item):not(.profile-trigger):not(.bell-trigger):not(.lesson-btn):not(.file-pick-btn):not(.toast-close):not(.row-delete):not(.footer-link):not(.folder-3d):not(:disabled),
 .recommend-btn,
 .auth-switch a,
 .cta-link,
@@ -1335,7 +1380,7 @@ header a[href="/najava"] {
   background-position: left center;
   transition: background-size 0.38s ease, transform 0.22s ease, box-shadow 0.22s ease, color 0.2s ease, background-color 0.2s ease;
 }
-button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item):not(.profile-trigger):not(.bell-trigger):not(.lesson-btn):not(.file-pick-btn):not(.toast-close):not(.row-delete):not(.footer-link):not(:disabled):hover,
+button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item):not(.profile-trigger):not(.bell-trigger):not(.lesson-btn):not(.file-pick-btn):not(.toast-close):not(.row-delete):not(.footer-link):not(.folder-3d):not(:disabled):hover,
 .recommend-btn:hover,
 .auth-switch a:hover,
 .cta-link:hover,
@@ -1343,7 +1388,7 @@ header a[href="/najava"]:hover {
   background-size: 100% 100%;
   transform: translateY(-2px);
 }
-button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item):not(.profile-trigger):not(.bell-trigger):not(.lesson-btn):not(.file-pick-btn):not(.toast-close):not(.row-delete):not(.footer-link):active,
+button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item):not(.profile-trigger):not(.bell-trigger):not(.lesson-btn):not(.file-pick-btn):not(.toast-close):not(.row-delete):not(.footer-link):not(.folder-3d):active,
 .recommend-btn:active,
 .cta-link svg { transition: transform 0.28s ease; }
 .cta-link:hover svg { transform: translateX(6px); }

@@ -152,7 +152,7 @@ export default function CalendarPage() {
             {upcoming.length ? upcoming.map((item) => (
               <button key={item.id} type="button" onClick={() => setCursor(new Date(item.year, item.month - 1, item.day))} className={`cal-item w-full text-left ${tone[item.category]}`}>
                 <b className="text-xs">{item.day} {MONTHS[item.month - 1]} {item.year} · {item.time}</b>
-                <p className="truncate text-sm font-bold text-brand-deep">{item.title}</p>
+                <p className="text-sm font-bold leading-snug text-brand-deep">{item.title}</p>
               </button>
             )) : <p className="text-sm text-muted-foreground">Нема претстојни активности во овој избор.</p>}
           </div>

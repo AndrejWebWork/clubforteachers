@@ -8,7 +8,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Клуб на наставници", {
       body: data.body || "Има ново известување во клубот.",
-      icon: "/favicon.svg",
+      icon: "/icon-512.png",
       data: { url: data.url || "/oglasi" },
     }),
   );

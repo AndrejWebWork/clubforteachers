@@ -361,7 +361,7 @@ export default function Admin() {
       )}
 
       {tab === "mail" && (
-        <div className="grid gap-5 min-[1100px]:grid-cols-2">
+        <div className="admin-split">
           <form
             className="panel grid gap-3"
             onSubmit={(event) => {

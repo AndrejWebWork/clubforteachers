@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Award, Clock3, FolderOpen, MonitorPlay } from "lucide-react";
+import { Award, Clock3, MonitorPlay } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { images } from "../data";
@@ -42,15 +42,19 @@ export default function Trainings() {
           <button
             key={item}
             type="button"
-            className={`sort-chip ${folder === item ? "active" : ""}`}
+            className={`folder-3d ${folder === item ? "open" : ""}`}
+            aria-pressed={folder === item}
             onClick={() => {
               setFolder(item);
               setCategory("Сите");
               setQuery("");
             }}
           >
-            <FolderOpen className="mx-auto mb-1 h-5 w-5" />
-            Модул {item}
+            <span className="folder-stage">
+              <span className="folder-pages" aria-hidden="true" />
+              <img src={item === 1 ? "/folders/modul-1-wide.png?v=2" : "/folders/modul-2-wide.png?v=2"} alt="" />
+            </span>
+            <span className="folder-caption">Модул {item}</span>
           </button>
         ))}
       </div>
@@ -101,7 +105,7 @@ export default function Trainings() {
                       </div>
                       {item.status === "Отворена" ? (
                         <Button asChild>
-                          <Link to={signedIn ? `/obuki/${item.id}` : "/najava"}>{signedIn ? "Отвори обука" : "Пријави се на обуката"}</Link>
+                          <Link to={signedIn ? `/obuki/${item.id}` : "/najava"}>Започни обука</Link>
                         </Button>
                       ) : (
                         <p className="text-sm text-muted-foreground">{item.status === "Наскоро" ? "Оваа обука сè уште не е отворена." : "Оваа обука е затворена."}</p>

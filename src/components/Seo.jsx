@@ -48,9 +48,11 @@ export default function Seo() {
     upsertMeta("property", "og:locale", "mk_MK");
     upsertMeta("property", "og:url", url);
     upsertMeta("property", "og:site_name", siteName);
-    upsertMeta("name", "twitter:card", "summary");
+    upsertMeta("property", "og:image", `${origin}/og.png`);
+    upsertMeta("name", "twitter:card", "summary_large_image");
     upsertMeta("name", "twitter:title", title);
     upsertMeta("name", "twitter:description", description);
+    upsertMeta("name", "twitter:image", `${origin}/og.png`);
     upsertLink("canonical", url);
 
     const scriptId = "site-jsonld";

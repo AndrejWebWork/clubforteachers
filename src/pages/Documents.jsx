@@ -133,7 +133,7 @@ export default function Documents({ embedded = false }) {
             <article key={item.title} className="featured-document">
               <span className={`file-icon ${item.type.toLowerCase()}`}><FileIcon type={item.type} /></span>
               <div className="min-w-0">
-                <b className="block truncate">{item.title}</b>
+                <b className="block leading-snug">{item.title}</b>
                 <small>{item.type} · {item.size} · {item.downloads || 0} симнувања</small>
               </div>
               <button type="button" className="pill ml-auto shrink-0" onClick={() => saveFile(item, noteDownload)}>
