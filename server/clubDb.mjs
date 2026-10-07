@@ -258,16 +258,6 @@ async function setup() {
        )
      WHERE skills @> '["Книговодство"]'::jsonb OR bio LIKE '%книговодство%'`,
   );
-  const videoCount = await pool.query("SELECT COUNT(*)::int AS count FROM videos");
-  if (videoCount.rows[0].count === 0) {
-    await pool.query("INSERT INTO videos (id, title, description, url, created_at) VALUES ($1,$2,$3,$4,$5)", [
-      "v-voved",
-      "Вовед: како го користиме клубот",
-      "Кратко видео за нови членови: каде се ресурсите, форумот и календарот.",
-      "",
-      "2026-09-20T08:00:00.000Z",
-    ]);
-  }
   const { ensureLearning } = await import("./learning.mjs");
   await ensureLearning(pool);
   await pool.query(
