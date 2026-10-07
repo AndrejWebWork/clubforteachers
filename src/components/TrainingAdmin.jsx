@@ -79,9 +79,9 @@ export default function TrainingAdmin() {
         <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-          <span className="mt-1 block font-medium text-muted-foreground">Се зачувува до 1080p, со помала големина, надвор од базата.</span>
+          <span className="mt-1 block font-medium text-muted-foreground">Се чува надвор од базата. Видео над 800 MB се качува на делови.</span>
         </div>
-        {uploadProgress > 0 && <p className="text-sm font-bold text-brand-deep">{uploadProgress < 100 ? `Се качува… ${uploadProgress}%` : "Се компресира до 1080p…"}</p>}
+        {uploadProgress > 0 && <p className="text-sm font-bold text-brand-deep">{uploadProgress < 100 ? `Се качува… ${uploadProgress}%` : "Се зачувува…"}</p>}
         <Button type="submit">Постави обука</Button>
       </form>
 

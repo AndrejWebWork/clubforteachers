@@ -276,7 +276,7 @@ export default function Admin() {
             <h2 className="section-heading">Ново видео</h2>
             <p className="text-sm text-muted-foreground">
               {storageMode === "remote"
-                ? "Снимката се стеснува до 1080p, па оди на надворешниот склад. Во базата останува само врската."
+                ? "Снимката оди на надворешниот склад. Видео над 800 MB се качува на делови. Во базата останува само врската."
                 : "Снимката се стеснува до 1080p и не влегува во базата. Зачуваниот фајл е помал. Складот е приватен склад на Filebase. Наставникот го гледа видеото преку страницата, со кратка врска."}
             </p>
             <Field label="Наслов">
@@ -291,7 +291,7 @@ export default function Admin() {
             <Field label="Или готов https линк">
               <input className={inputClass} value={videoForm.url} onChange={(event) => setVideoForm({ ...videoForm, url: event.target.value })} placeholder="https://..." />
             </Field>
-            {uploadProgress > 0 && <p className="text-sm font-bold text-brand-deep">{uploadProgress < 100 ? `Се качува… ${uploadProgress}%` : "Се компресира до 1080p…"}</p>}
+            {uploadProgress > 0 && <p className="text-sm font-bold text-brand-deep">{uploadProgress < 100 ? `Се качува… ${uploadProgress}%` : "Се зачувува…"}</p>}
             <Button type="submit">Додај видео</Button>
           </form>
           <section className="panel divide-y">

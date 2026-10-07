@@ -43,7 +43,7 @@ function signingKey(secret, dateStamp, region) {
   return createHmac("sha256", serviceKey).update("aws4_request").digest();
 }
 
-function presign({ config, method, key, expires }) {
+function presign({ config, method, key, expires, extra = [] }) {
   const host = config.host;
   const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
@@ -55,6 +55,7 @@ function presign({ config, method, key, expires }) {
     ["X-Amz-Date", amzDate],
     ["X-Amz-Expires", String(expires)],
     ["X-Amz-SignedHeaders", "host"],
+    ...extra,
   ]
     .sort(([left], [right]) => (left < right ? -1 : 1))
     .map(([name, item]) => `${encodeURIComponent(name)}=${encodeURIComponent(item)}`)
@@ -190,12 +191,64 @@ export async function dropStored(root, uploadDir, url) {
   removeLocalUpload(uploadDir, url);
 }
 
+export const LARGE_VIDEO = 800 * 1024 * 1024;
+
 export function videoTicket(config, originalName) {
   const key = videoKey(originalName);
   return {
-    uploadUrl: presign({ config, method: "PUT", key, expires: 3600 }),
+    uploadUrl: presign({ config, method: "PUT", key, expires: 21600 }),
     publicUrl: watchPath(key),
   };
+}
+
+function xmlEscape(value) {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export async function openLargeUpload(config, originalName, size) {
+  const bytes = Number(size);
+  if (!Number.isFinite(bytes) || bytes < 5 * 1024 * 1024) throw Object.assign(new Error("size"), { status: 400 });
+  await ensureBucket(config);
+  const key = videoKey(originalName);
+  const resource = `/${config.bucket}/${encodeKey(key)}`;
+  const opened = await signedCall(config, "POST", resource, "", "uploads");
+  const xml = await opened.text();
+  const uploadId = xml.match(/<UploadId>([^<]+)<\/UploadId>/)?.[1];
+  if (!opened.ok || !uploadId) throw Object.assign(new Error("remote"), { status: 502 });
+  const preferred = 16 * 1024 * 1024;
+  const partSize = bytes > preferred * 10000 ? Math.ceil(bytes / 10000) : Math.min(preferred, Math.max(5 * 1024 * 1024, Math.floor(bytes / 2)));
+  const count = Math.ceil(bytes / partSize);
+  const parts = [];
+  for (let index = 0; index < count; index += 1) {
+    const start = index * partSize;
+    parts.push({
+      partNumber: index + 1,
+      start,
+      end: Math.min(bytes, start + partSize),
+      url: presign({
+        config,
+        method: "PUT",
+        key,
+        expires: 21600,
+        extra: [["partNumber", String(index + 1)], ["uploadId", uploadId]],
+      }),
+    });
+  }
+  return { key, uploadId, publicUrl: watchPath(key), parts };
+}
+
+export async function finishLargeUpload(config, key, uploadId, parts) {
+  if (!/^videos\/[\w.\-]+$/.test(key)) throw Object.assign(new Error("key"), { status: 400 });
+  const ordered = [...parts].sort((left, right) => left.partNumber - right.partNumber);
+  const body = `<CompleteMultipartUpload>${ordered.map((part) => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${xmlEscape(part.etag)}</ETag></Part>`).join("")}</CompleteMultipartUpload>`;
+  const response = await signedCall(config, "POST", `/${config.bucket}/${encodeKey(key)}`, body, `uploadId=${encodeURIComponent(uploadId)}`);
+  if (!response.ok) throw Object.assign(new Error("remote"), { status: 502 });
+  return watchPath(key);
+}
+
+export async function abortLargeUpload(config, key, uploadId) {
+  if (!/^videos\/[\w.\-]+$/.test(String(key)) || !uploadId) return;
+  await signedCall(config, "DELETE", `/${config.bucket}/${encodeKey(key)}`, "", `uploadId=${encodeURIComponent(uploadId)}`).catch(() => {});
 }
 
 export function fileTicket(config, originalName) {

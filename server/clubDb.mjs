@@ -523,8 +523,9 @@ async function handle(method, url, req) {
   let body = {};
   if (method === "POST" || method === "PATCH" || method === "PUT") {
     const heavy = ["/api/documents", "/api/resources", "/api/attachments", "/api/accounts/import"].includes(url) || url.startsWith("/api/trainings");
+    const limit = url === "/api/media/upload/finish" ? 1_000_000 : heavy ? 8_000_000 : 100_000;
     try {
-      body = await readBody(req, heavy ? 8_000_000 : 100_000);
+      body = await readBody(req, limit);
     } catch (error) {
       const status = error.status || 400;
       return { status, body: { error: status === 413 ? "Датотеката е преголема." : "Неисправно барање." } };
@@ -549,6 +550,47 @@ async function handle(method, url, req) {
     if (!config.remote) return { status: 400, body: { error: "Бесплатниот надворешен склад не е поврзан." } };
     await ensureBucket(config);
     return { status: 200, body: fileTicket(config, body.name) };
+  }
+
+  if (method === "POST" && url === "/api/media/upload/start") {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const { mediaConfig, openLargeUpload } = await import("./mediaStore.mjs");
+    const config = mediaConfig(root);
+    if (!config.remote) return { status: 400, body: { error: "Бесплатниот надворешен склад не е поврзан." } };
+    try {
+      return { status: 200, body: await openLargeUpload(config, body.name, body.size) };
+    } catch (error) {
+      if (error.status === 400) return { status: 400, body: { error: "Видеото е премало за качување на делови." } };
+      return { status: 502, body: { error: "Качувањето не почна." } };
+    }
+  }
+
+  if (method === "POST" && url === "/api/media/upload/finish") {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const parts = Array.isArray(body.parts) ? body.parts.slice(0, 10000).map((part) => ({
+      partNumber: Number(part.partNumber),
+      etag: String(part.etag || "").slice(0, 128),
+    })).filter((part) => part.partNumber > 0 && part.etag) : [];
+    if (!parts.length) return { status: 400, body: { error: "Качувањето не е целосно." } };
+    const { finishLargeUpload, mediaConfig } = await import("./mediaStore.mjs");
+    const config = mediaConfig(root);
+    if (!config.remote) return { status: 400, body: { error: "Бесплатниот надворешен склад не е поврзан." } };
+    try {
+      const url = await finishLargeUpload(config, String(body.key || ""), String(body.uploadId || ""), parts);
+      return { status: 200, body: { url } };
+    } catch {
+      return { status: 502, body: { error: "Големото видео не се состави." } };
+    }
+  }
+
+  if (method === "POST" && url === "/api/media/upload/abort") {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const { abortLargeUpload, mediaConfig } = await import("./mediaStore.mjs");
+    await abortLargeUpload(mediaConfig(root), String(body.key || ""), String(body.uploadId || ""));
+    return { status: 200, body: { ok: true } };
   }
 
   if (method === "PATCH" && url === "/api/me") {

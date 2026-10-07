@@ -1,5 +1,7 @@
 import { getToken } from "./api";
 
+const LARGE_VIDEO = 800 * 1024 * 1024;
+
 function sendFile({ url, method, file, headers, onProgress }) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -44,8 +46,62 @@ async function ticket(path, name) {
   return response.json();
 }
 
+function sendPart(url, blob, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) onProgress(event.loaded);
+    };
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error("Качувањето не успеа."));
+        return;
+      }
+      resolve(xhr.getResponseHeader("etag") || xhr.getResponseHeader("ETag") || "");
+    };
+    xhr.onerror = () => reject(new Error("Качувањето не успеа."));
+    xhr.send(blob);
+  });
+}
+
+async function postJson(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Качувањето не успеа.");
+  return payload;
+}
+
+async function uploadLargeVideo(file, onProgress) {
+  const opened = await postJson("/api/media/upload/start", { name: file.name || "video.mp4", size: file.size });
+  const tags = [];
+  let sent = 0;
+  try {
+    for (const part of opened.parts) {
+      const etag = await sendPart(part.url, file.slice(part.start, part.end), (loaded) => {
+        if (onProgress) onProgress(Math.min(99, Math.round(((sent + loaded) / file.size) * 100)));
+      });
+      if (!etag) throw new Error("Качувањето не успеа.");
+      sent += part.end - part.start;
+      tags.push({ partNumber: part.partNumber, etag });
+    }
+    const finished = await postJson("/api/media/upload/finish", { key: opened.key, uploadId: opened.uploadId, parts: tags });
+    if (onProgress) onProgress(100);
+    return finished.url;
+  } catch (error) {
+    await postJson("/api/media/upload/abort", { key: opened.key, uploadId: opened.uploadId }).catch(() => {});
+    throw error;
+  }
+}
+
 export async function uploadVideoFile(file, onProgress) {
   if (!file) return "";
+  if (file.size > LARGE_VIDEO) return uploadLargeVideo(file, onProgress);
   const granted = await ticket("/api/media/ticket", file.name || "video.mp4");
   if (granted?.uploadUrl) {
     await sendFile({
