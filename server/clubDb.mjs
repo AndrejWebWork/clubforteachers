@@ -35,13 +35,13 @@ function databaseUrl() {
     .split(/\r?\n/)
     .find((entry) => entry.startsWith("DATABASE_URL="));
   if (!line) return "";
-  return line.slice("DATABASE_URL=".length).trim().replace(/^["']|["']$/g, "");
+  return line.slice("DATABASE_URL=".length).trim().replace(/^["']|["']$/g, "").replace(/([?&])channel_binding=[^&]*/g, "$1").replace(/[?&]$/, "");
 }
 
 let poolInstance;
 function livePool() {
   if (poolInstance) return poolInstance;
-  const connectionString = databaseUrl();
+  const connectionString = databaseUrl().replace(/([?&])channel_binding=[^&]*/g, "$1").replace(/[?&]$/, "");
   if (!connectionString) {
     throw new Error("DATABASE_URL is missing. Add it to .env.");
   }
@@ -202,7 +202,11 @@ const postSelect = `
 `;
 
 async function setup() {
-  if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+  try {
+    if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+  } catch {
+    /* Vercel keeps the project folder read-only. */
+  }
   const { ensureFeeds } = await import("./feeds.mjs");
   const { ensureEvents } = await import("./events.mjs");
   await ensureFeeds(pool);
@@ -960,9 +964,17 @@ export function clubApiMiddleware() {
       const status = error.status || 500;
       const detail = String(error?.message || "unknown").replace(/postgres(?:ql)?:\/\/\S+/gi, "postgresql://***");
       if (status === 500) console.error("Database request failed:", detail);
+      const safe = detail.replace(/postgres(?:ql)?:\/\/\S+/gi, "").replace(/\s+/g, " ").trim().slice(0, 180);
+      const message = status === 413
+        ? "Видеото е преголемо."
+        : safe.includes("DATABASE_URL is missing")
+          ? "DATABASE_URL не е поставен на Vercel."
+          : safe
+            ? `Базата не можеше да го заврши барањето. ${safe}`
+            : "Базата не можеше да го заврши барањето.";
       res.statusCode = status;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(JSON.stringify({ error: status === 413 ? "Видеото е преголемо." : "Базата не можеше да го заврши барањето." }));
+      res.end(JSON.stringify({ error: message }));
     }
   };
 }
