@@ -38,15 +38,27 @@ function databaseUrl() {
   return line.slice("DATABASE_URL=".length).trim().replace(/^["']|["']$/g, "");
 }
 
-const connectionString = databaseUrl();
-if (!connectionString) {
-  throw new Error("DATABASE_URL is missing. Add it to .env.");
+let poolInstance;
+function livePool() {
+  if (poolInstance) return poolInstance;
+  const connectionString = databaseUrl();
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is missing. Add it to .env.");
+  }
+  poolInstance = new Pool({
+    connectionString,
+    max: 5,
+    ssl: { rejectUnauthorized: false },
+  });
+  return poolInstance;
 }
 
-const pool = new Pool({
-  connectionString,
-  max: 5,
-  ssl: { rejectUnauthorized: false },
+const pool = new Proxy({}, {
+  get(_target, prop) {
+    const real = livePool();
+    const value = real[prop];
+    return typeof value === "function" ? value.bind(real) : value;
+  },
 });
 
 function hashPassword(salt, password) {
