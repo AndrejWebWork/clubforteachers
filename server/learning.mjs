@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { documents as staticDocuments, resources as staticResources, trainings as staticTrainings } from "../src/data.js";
-import { persistBytes } from "./mediaStore.mjs";
+import { dropStored, persistBytes } from "./mediaStore.mjs";
 import { isBlockedUpload } from "./shield.mjs";
 
 const invitationText = `Почитувани,
@@ -53,6 +53,7 @@ export async function ensureLearning(pool) {
       image text NOT NULL DEFAULT 'webinar',
       video_url text NOT NULL DEFAULT '',
       duration_seconds numeric,
+      module_no integer NOT NULL DEFAULT 1,
       created_at timestamptz NOT NULL
     );
     CREATE TABLE IF NOT EXISTS training_questions (
@@ -108,6 +109,7 @@ export async function ensureLearning(pool) {
       sent_at timestamptz NOT NULL
     );
   `);
+  await pool.query("ALTER TABLE trainings ADD COLUMN IF NOT EXISTS module_no integer NOT NULL DEFAULT 1");
 
   const trainingCount = await pool.query("SELECT COUNT(*)::int AS count FROM trainings");
   if (trainingCount.rows[0].count === 0) {
@@ -144,6 +146,7 @@ function mapTraining(row, questions, progress, certificate, isAdmin) {
     status: row.status,
     image: row.image,
     videoUrl: row.video_url,
+    module: Number(row.module_no) === 2 ? 2 : 1,
     durationSeconds: row.duration_seconds ? Number(row.duration_seconds) : 0,
     questions: questions.map((item) => ({
       id: item.id,
@@ -156,6 +159,22 @@ function mapTraining(row, questions, progress, certificate, isAdmin) {
       : { position: 0, furthest: 0 },
     certified: Boolean(certificate),
   };
+}
+
+function moduleNumber(value) {
+  return Number(value) === 2 ? 2 : 1;
+}
+
+async function videosReady(pool, userId) {
+  const { rows } = await pool.query(
+    `SELECT t.duration_seconds, COALESCE(p.furthest_seconds, 0) AS furthest
+     FROM trainings t
+     LEFT JOIN training_progress p ON p.training_id = t.id AND p.user_id = $1
+     WHERE t.video_url <> ''`,
+    [userId],
+  );
+  if (!rows.length) return true;
+  return rows.every((row) => Number(row.duration_seconds) > 0 && Number(row.furthest) >= Number(row.duration_seconds) - 3);
 }
 
 async function questionsFor(pool, trainingId) {
@@ -292,7 +311,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   }
 
   if (method === "GET" && url === "/api/trainings") {
-    const { rows } = await pool.query("SELECT id, title, category, description, duration, format, level, status, image, video_url FROM trainings ORDER BY created_at DESC");
+    const { rows } = await pool.query("SELECT id, title, category, description, duration, format, level, status, image, video_url, module_no FROM trainings ORDER BY created_at DESC");
     return {
       status: 200,
       body: {
@@ -307,6 +326,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
           status: row.status,
           image: row.image,
           videoUrl: row.video_url,
+          module: moduleNumber(row.module_no),
         })),
       },
     };
@@ -329,8 +349,8 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     }
     const trainingId = fileId("obuka");
     await pool.query(
-      `INSERT INTO trainings (id, title, category, description, duration, format, level, status, image, video_url, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'project',$9, NOW())`,
+      `INSERT INTO trainings (id, title, category, description, duration, format, level, status, image, video_url, module_no, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'project',$9,$10, NOW())`,
       [
         trainingId,
         title,
@@ -341,6 +361,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
         text(body.level, 40) || "Сите нивоа",
         text(body.status, 40) || "Отворена",
         videoUrl,
+        moduleNumber(body.module),
       ],
     );
     return { status: 201, body: { training: { id: trainingId, title, videoUrl } } };
@@ -383,6 +404,9 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const duration = Number(training.rows[0].duration_seconds || 0);
     const finished = training.rows[0].video_url ? duration > 0 && furthest >= duration - 3 : furthest >= 1;
     if (!finished) return { status: 400, body: { error: "Прво догледајте ја обуката. Прескокнување напред не е дозволено." } };
+    if (!(await videosReady(pool, auth.user.id))) {
+      return { status: 400, body: { error: "Тестот се отвора откако ќе ги изгледате сите видеа од двата модула." } };
+    }
     const questions = await questionsFor(pool, quizMatch[1]);
     if (!questions.length) return { status: 400, body: { error: "За оваа обука сè уште нема тест." } };
     const answers = Array.isArray(body.answers) ? body.answers.map(Number) : [];
@@ -461,12 +485,29 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const progress = await pool.query("SELECT * FROM training_progress WHERE user_id = $1 AND training_id = $2", [auth.user.id, trainingMatch[1]]);
     const certificate = await pool.query("SELECT id FROM certificates WHERE user_id = $1 AND training_id = $2", [auth.user.id, trainingMatch[1]]);
     const isAdmin = auth.user.role === "admin";
-    return { status: 200, body: { training: mapTraining(rows[0], questions, progress.rows[0], certificate.rows[0], isAdmin) } };
+    const training = mapTraining(rows[0], questions, progress.rows[0], certificate.rows[0], isAdmin);
+    training.modulesReady = await videosReady(pool, auth.user.id);
+    return { status: 200, body: { training } };
+  }
+
+  if (method === "DELETE" && trainingMatch) {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const existing = await pool.query("SELECT video_url FROM trainings WHERE id = $1", [trainingMatch[1]]);
+    if (!existing.rows[0]) return { status: 404, body: { error: "Обуката не е пронајдена." } };
+    await dropStored(root, uploadDir, existing.rows[0].video_url);
+    await pool.query("DELETE FROM trainings WHERE id = $1", [trainingMatch[1]]);
+    return { status: 200, body: { ok: true } };
   }
 
   if (method === "PATCH" && trainingMatch) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
+    if (body.module && !body.title) {
+      const updated = await pool.query("UPDATE trainings SET module_no = $1 WHERE id = $2", [moduleNumber(body.module), trainingMatch[1]]);
+      if (!updated.rowCount) return { status: 404, body: { error: "Обуката не е пронајдена." } };
+      return { status: 200, body: { ok: true } };
+    }
     const title = text(body.title, 140);
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
     let videoUrl = text(body.videoUrl, 2000);
@@ -477,7 +518,8 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     }
     await pool.query(
       `UPDATE trainings SET title = $1, category = $2, description = $3, duration = $4, format = $5, level = $6, status = $7,
-        video_url = CASE WHEN $8 = '' THEN video_url ELSE $8 END
+        video_url = CASE WHEN $8 = '' THEN video_url ELSE $8 END,
+        module_no = CASE WHEN $10 = 0 THEN module_no ELSE $10 END
        WHERE id = $9`,
       [
         title,
@@ -489,6 +531,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
         text(body.status, 40) || "Отворена",
         videoUrl,
         trainingMatch[1],
+        body.module ? moduleNumber(body.module) : 0,
       ],
     );
     return { status: 200, body: { ok: true } };

@@ -12,7 +12,7 @@ export default function TrainingAdmin() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [done, setDone] = useState(null);
-  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена" });
+  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
   const [editing, setEditing] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [uploadNote, setUploadNote] = useState("");
@@ -43,8 +43,9 @@ export default function TrainingAdmin() {
       {error && <p className="text-sm font-semibold text-brand-urgent">{error}</p>}
       {notice && <p className="text-sm font-semibold text-brand-deep">{notice}</p>}
       <SuccessPop title={done?.title} text={done?.text} onClose={() => setDone(null)} />
+      <div className="admin-split">
       <form
-        className="panel grid gap-3"
+        className="panel grid"
         onSubmit={(event) => {
           event.preventDefault();
           const file = event.currentTarget.elements.video.files?.[0];
@@ -55,7 +56,7 @@ export default function TrainingAdmin() {
             setUploadNote("");
             if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
             await api.addTraining(payload);
-            setForm({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена" });
+            setForm({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
             setUploadNote("");
             node.reset();
             setDone({
@@ -67,7 +68,7 @@ export default function TrainingAdmin() {
       >
         <h2 className="section-heading">Нова обука</h2>
         <input className={inputClass} placeholder="Наслов" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-        <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Опис" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+        <textarea className="min-h-28 rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
         <div className="grid gap-3 sm:grid-cols-2">
           <input className={inputClass} placeholder="Категорија" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} />
           <input className={inputClass} placeholder="Траење" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} />
@@ -77,7 +78,12 @@ export default function TrainingAdmin() {
             <option>Наскоро</option>
             <option>Завршена</option>
           </select>
+          <select className={inputClass} value={form.module} onChange={(event) => setForm({ ...form, module: Number(event.target.value) })}>
+            <option value={1}>Модул 1</option>
+            <option value={2}>Модул 2</option>
+          </select>
         </div>
+        <span className="text-sm font-medium text-muted-foreground">Нова тема што досега ја нема добива свое сортирање кај обуките. Празното место го задржува истиот текст.</span>
         <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
@@ -87,33 +93,49 @@ export default function TrainingAdmin() {
         <Button type="submit">Постави обука</Button>
       </form>
 
-      <section className="panel divide-y">
+      <section className="panel">
+        <h2 className="section-heading">Додадени обуки</h2>
+        {trainings.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема обуки.</p>}
+        <div className="divide-y">
         {trainings.map((item) => (
           <div key={item.id} className="py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <b className="text-brand-deep">{item.title}</b>
-                <p className="text-sm text-muted-foreground">{item.status} · {item.videoUrl ? "со видео" : "без видео"}</p>
+                <p className="text-sm text-muted-foreground">{item.category} · Модул {item.module || 1} · {item.status} · {item.videoUrl ? "со видео" : "без видео"}</p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => run(async () => {
-                  const data = await api.training(item.id);
-                  setEditing(data.training);
-                  setQuestions(data.training.questions.length ? data.training.questions.map((question) => ({
-                    prompt: question.prompt,
-                    options: question.options,
-                    correctIndex: question.correctIndex ?? 0,
-                  })) : [emptyQuestion()]);
-                })}
-              >
-                Тест
-              </Button>
+              <div className="flex items-center gap-2">
+                <select
+                  className="h-9 rounded-md border bg-card px-2 text-sm font-bold text-brand-deep"
+                  value={item.module || 1}
+                  onChange={(event) => run(() => api.updateTraining(item.id, { module: Number(event.target.value) }))}
+                >
+                  <option value={1}>Модул 1</option>
+                  <option value={2}>Модул 2</option>
+                </select>
+                <button type="button" className="row-delete" onClick={() => run(() => api.deleteTraining(item.id))}>Избриши</button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => run(async () => {
+                    const data = await api.training(item.id);
+                    setEditing(data.training);
+                    setQuestions(data.training.questions.length ? data.training.questions.map((question) => ({
+                      prompt: question.prompt,
+                      options: question.options,
+                      correctIndex: question.correctIndex ?? 0,
+                    })) : [emptyQuestion()]);
+                  })}
+                >
+                  Тест
+                </Button>
+              </div>
             </div>
           </div>
         ))}
+        </div>
       </section>
+      </div>
 
       {editing && (
         <form
@@ -136,7 +158,7 @@ export default function TrainingAdmin() {
                   <input className={inputClass} placeholder={`Одговор ${optionIndex + 1}`} value={option} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: item.options.map((value, valueIndex) => valueIndex === optionIndex ? event.target.value : value) } : item))} />
                 </label>
               ))}
-              <button type="button" className="text-left text-xs font-bold text-muted-foreground" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Отстрани прашање</button>
+              <button type="button" className="row-delete w-fit" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Отстрани прашање</button>
             </fieldset>
           ))}
           <div className="flex gap-2">

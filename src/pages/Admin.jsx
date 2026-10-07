@@ -254,9 +254,9 @@ export default function Admin() {
       )}
 
       {tab === "videos" && (
-        <div className="grid gap-5 min-[1100px]:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="admin-split">
           <form
-            className="panel grid gap-3"
+            className="panel grid"
             onSubmit={(event) => {
               event.preventDefault();
               const file = videoFile.current?.files?.[0];
@@ -285,7 +285,7 @@ export default function Admin() {
               <input className={inputClass} value={videoForm.title} onChange={(event) => setVideoForm({ ...videoForm, title: event.target.value })} required />
             </Field>
             <Field label="Опис">
-              <textarea className="w-full rounded-md border bg-card px-3 py-2 text-sm" rows={4} value={videoForm.description} onChange={(event) => setVideoForm({ ...videoForm, description: event.target.value })} />
+              <textarea className="min-h-28 w-full rounded-md border bg-card px-3 py-2 text-sm" rows={5} value={videoForm.description} onChange={(event) => setVideoForm({ ...videoForm, description: event.target.value })} />
             </Field>
             <Field label="Видеодатотека">
               <FilePick inputRef={videoFile} accept="video/mp4,video/webm,video/quicktime" />
@@ -296,25 +296,29 @@ export default function Admin() {
             {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
             <Button type="submit">Додај видео</Button>
           </form>
-          <section className="panel divide-y">
+          <section className="panel">
+            <h2 className="section-heading">Додадени видеа</h2>
+            {videos.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема видеа.</p>}
+            <div className="divide-y">
             {videos.map((video) => (
               <div key={video.id} className="py-3">
                 <div className="flex items-start justify-between gap-3">
                   <b className="text-brand-deep">{video.title}</b>
-                  <button type="button" className="text-xs font-bold text-muted-foreground" onClick={() => run(() => api.deleteVideo(video.id))}>Избриши</button>
+                  <button type="button" className="row-delete" onClick={() => run(() => api.deleteVideo(video.id))}>Избриши</button>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{video.description}</p>
                 {video.url && <p className="mt-1 text-sm font-bold text-primary">Снимката е поставена</p>}
               </div>
             ))}
+            </div>
           </section>
         </div>
       )}
 
       {tab === "files" && (
-        <div className="grid gap-5 min-[1100px]:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="admin-split">
           <form
-            className="panel grid gap-3"
+            className="panel grid"
             onSubmit={(event) => {
               event.preventDefault();
               const file = event.currentTarget.elements.file.files?.[0];
@@ -341,14 +345,17 @@ export default function Admin() {
             <FilePick name="file" required />
             <Button type="submit">Прикачи</Button>
           </form>
-          <section className="panel divide-y">
+          <section className="panel">
+            <h2 className="section-heading">Додадени прилози</h2>
             {files.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема прилози.</p>}
+            <div className="divide-y">
             {files.map((file) => (
               <div key={file.id} className="flex items-center justify-between gap-3 py-3">
                 <a className="font-bold text-brand-deep" href={file.url} download>{file.name}</a>
-                <button type="button" className="text-xs font-bold text-muted-foreground" onClick={() => run(() => api.deleteAttachment(file.id))}>Избриши</button>
+                <button type="button" className="row-delete" onClick={() => run(() => api.deleteAttachment(file.id))}>Избриши</button>
               </div>
             ))}
+            </div>
           </section>
         </div>
       )}

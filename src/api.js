@@ -93,6 +93,7 @@ export const api = {
   trainings: () => request("/api/trainings"),
   training: (id) => request(`/api/trainings/${id}`),
   addTraining: (body) => request("/api/trainings", { method: "POST", body }),
+  deleteTraining: (id) => request(`/api/trainings/${id}`, { method: "DELETE" }),
   updateTraining: (id, body) => request(`/api/trainings/${id}`, { method: "PATCH", body }),
   saveQuiz: (id, questions) => request(`/api/trainings/${id}/quiz`, { method: "PUT", body: { questions } }),
   submitQuiz: (id, answers) => request(`/api/trainings/${id}/quiz`, { method: "POST", body: { answers } }),

@@ -158,7 +158,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       </aside>
-      <div className="min-w-0">
+      <div className="flex min-h-screen min-w-0 flex-col">
         <header className="sticky top-0 z-20 flex h-[72px] items-center gap-3 border-b bg-background/95 px-4 backdrop-blur sm:px-6">
           <Button variant="ghost" size="icon" className="shrink-0 md:hidden" onClick={() => setOpen(true)}>
             <Menu />
@@ -240,7 +240,7 @@ export default function Layout({ children }) {
             </div>
           </div>
         </header>
-        <main id="sodrzina" className="mx-auto w-full max-w-[1500px] p-4 sm:p-6 lg:p-8">
+        <main id="sodrzina" className="mx-auto w-full max-w-[1500px] flex-1 p-4 sm:p-6 lg:p-8">
           {consent && pushState === "default" && (
             <div className="push-banner">
               <p>Известувањата за огласната табла, календарот и форумот се вклучени. Дозволи ги во прелистувачот за да стигнуваат и кога страницата е затворена.</p>
@@ -261,7 +261,7 @@ export default function Layout({ children }) {
             <Link to="/privatnost" className="text-brand-deep hover:text-primary">Приватност</Link>
             <Link to="/uslovi" className="text-brand-deep hover:text-primary">Услови</Link>
             <Link to="/kolacinja" className="text-brand-deep hover:text-primary">Колачиња</Link>
-            <button className="font-semibold text-brand-deep hover:text-primary" onClick={() => setCookiesOpen(true)}>
+            <button type="button" className="footer-link" onClick={() => setCookiesOpen(true)}>
               Поставки за колачиња
             </button>
           </nav>

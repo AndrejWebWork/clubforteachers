@@ -95,6 +95,12 @@ export default function TrainingPlayer() {
         furthestRef.current = data.furthest;
         setFurthest(data.furthest);
         if (video.currentTime > data.furthest + 1.5) video.currentTime = data.furthest;
+        const known = Number.isFinite(video.duration) ? video.duration : 0;
+        if (known > 0 && data.furthest >= known - 3) {
+          api.training(training.id).then((fresh) => {
+            setTraining((current) => current ? { ...current, modulesReady: fresh.training.modulesReady } : current);
+          }).catch(() => {});
+        }
       }).catch(() => {});
     }, 4000);
     return () => clearInterval(timer);
@@ -114,6 +120,7 @@ export default function TrainingPlayer() {
 
   const duration = length || training.durationSeconds || 0;
   const finished = training.videoUrl ? duration > 0 && furthest >= duration - 3 : furthest >= 1;
+  const quizOpen = finished && training.modulesReady;
 
   function rewind() {
     const node = videoRef.current;
@@ -134,7 +141,8 @@ export default function TrainingPlayer() {
       <Button asChild variant="ghost" className="no-print mb-4">
         <Link to="/obuki"><ArrowLeft className="h-4 w-4" /> Назад кон обуките</Link>
       </Button>
-      <PageHeader eyebrow={training.category} title={training.title} description={training.description} />
+      <PageHeader eyebrow={`Модул ${training.module || 1} · ${training.category}`} title={training.title} description={training.description} />
+      <p className="module-note">По завршување на вториот модул, кога ќе ги изгледате сите видеа, веднаш се појавува тест. Со точен тест добивате сертификат.</p>
       {training.videoUrl ? (
         <section className="lesson-player">
           <div className="lesson-stage">
@@ -205,9 +213,9 @@ export default function TrainingPlayer() {
 
       <section className="panel mt-5">
         <h2 className="section-heading">Тест</h2>
-        {!finished && <p className="text-sm text-muted-foreground">Тестот се отвора кога ќе ја изгледате обуката до крај.</p>}
-        {finished && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
-        {finished && training.questions.length > 0 && (
+        {!quizOpen && <p className="text-sm text-muted-foreground">Тестот се појавува откако ќе ги изгледате сите видеа од двата модула.</p>}
+        {quizOpen && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
+        {quizOpen && training.questions.length > 0 && (
           <form
             className="grid gap-5"
             onSubmit={async (event) => {
