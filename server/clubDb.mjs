@@ -375,6 +375,15 @@ async function loadPost(postId) {
 }
 
 function readBody(req, limit = 6_000_000) {
+  if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) return Promise.resolve(req.body);
+  if (typeof req.body === "string" && req.body) {
+    try {
+      return Promise.resolve(JSON.parse(req.body));
+    } catch {
+      return Promise.reject(Object.assign(new Error("json"), { status: 400 }));
+    }
+  }
+  if (req.readableEnded) return Promise.resolve({});
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
