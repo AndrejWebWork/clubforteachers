@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { uploadVideoFile } from "../media";
+import { uploadStatus, uploadVideoFile } from "../media";
 import { Button, FilePick, SuccessPop, uploadFailed } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
@@ -15,7 +15,7 @@ export default function TrainingAdmin() {
   const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена" });
   const [editing, setEditing] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadNote, setUploadNote] = useState("");
 
   function load() {
     return api.trainings().then((data) => setTrainings(data.trainings));
@@ -32,7 +32,7 @@ export default function TrainingAdmin() {
       await action();
       await load();
     } catch (reason) {
-      setUploadProgress(0);
+      setUploadNote("");
       setError(reason.message);
       if (upload) uploadFailed(reason.message);
     }
@@ -52,11 +52,11 @@ export default function TrainingAdmin() {
           const title = form.title.trim();
           run(async () => {
             const payload = { ...form };
-            setUploadProgress(0);
-            if (file) payload.videoUrl = await uploadVideoFile(file, setUploadProgress);
+            setUploadNote("");
+            if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
             await api.addTraining(payload);
             setForm({ title: "", category: "Обука", description: "", duration: "1 час", format: "Онлајн", level: "Сите нивоа", status: "Отворена" });
-            setUploadProgress(0);
+            setUploadNote("");
             node.reset();
             setDone({
               title: "Обуката е прикачена",
@@ -81,9 +81,9 @@ export default function TrainingAdmin() {
         <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-          <span className="mt-1 block font-medium text-muted-foreground">Се чува надвор од базата. Видео над 800 MB се качува на делови.</span>
+          <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 720p. Во базата останува само врската, не самиот фајл.</span>
         </div>
-        {uploadProgress > 0 && <p className="text-sm font-bold text-brand-deep">{uploadProgress < 100 ? `Се качува… ${uploadProgress}%` : "Се зачувува…"}</p>}
+        {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
         <Button type="submit">Постави обука</Button>
       </form>
 

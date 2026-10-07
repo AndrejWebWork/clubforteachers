@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../compositor/AppCompositor";
 import { api } from "../api";
-import { placeFile, uploadVideoFile } from "../media";
+import { placeFile, uploadStatus, uploadVideoFile } from "../media";
 import TrainingAdmin from "../components/TrainingAdmin";
 import FeedAdmin from "../components/FeedAdmin";
 import EventAdmin from "../components/EventAdmin";
@@ -56,7 +56,7 @@ export default function Admin() {
   const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", role: "teacher", school: "", title: "" });
   const [videoForm, setVideoForm] = useState({ title: "", description: "", url: "" });
   const [imported, setImported] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadNote, setUploadNote] = useState("");
   const [storageMode, setStorageMode] = useState("local");
   const videoFile = useRef(null);
   const memberFile = useRef(null);
@@ -89,7 +89,7 @@ export default function Admin() {
       await action();
       await load();
     } catch (reason) {
-      setUploadProgress(0);
+      setUploadNote("");
       setError(reason.message);
       if (upload) uploadFailed(reason.message);
     }
@@ -262,12 +262,12 @@ export default function Admin() {
               const file = videoFile.current?.files?.[0];
               const title = videoForm.title.trim();
               run(async () => {
-                setUploadProgress(0);
-                const url = file ? await uploadVideoFile(file, setUploadProgress) : videoForm.url.trim();
+                setUploadNote("");
+                const url = file ? await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update))) : videoForm.url.trim();
                 await api.addVideo({ ...videoForm, url });
                 setVideoForm({ title: "", description: "", url: "" });
                 if (videoFile.current) videoFile.current.value = "";
-                setUploadProgress(0);
+                setUploadNote("");
                 setDone({
                   title: "Видеото е прикачено",
                   text: `„${title}“ е успешно додадено. Наставниците го гледаат во Материјали.`,
@@ -278,8 +278,8 @@ export default function Admin() {
             <h2 className="section-heading">Ново видео</h2>
             <p className="text-sm text-muted-foreground">
               {storageMode === "remote"
-                ? "Снимката оди на надворешниот склад. Видео над 800 MB се качува на делови. Во базата останува само врската."
-                : "Снимката се стеснува до 1080p и не влегува во базата. Зачуваниот фајл е помал. Складот е приватен склад на Filebase. Наставникот го гледа видеото преку страницата, со кратка врска."}
+                ? "Снимката прво се стеснува до 720p, па оди на складот. Во базата останува само кратката врска, не самиот фајл."
+                : "Снимката се стеснува до 720p пред да се зачува. Во базата останува само кратката врска."}
             </p>
             <Field label="Наслов">
               <input className={inputClass} value={videoForm.title} onChange={(event) => setVideoForm({ ...videoForm, title: event.target.value })} required />
@@ -293,7 +293,7 @@ export default function Admin() {
             <Field label="Или готов https линк">
               <input className={inputClass} value={videoForm.url} onChange={(event) => setVideoForm({ ...videoForm, url: event.target.value })} placeholder="https://..." />
             </Field>
-            {uploadProgress > 0 && <p className="text-sm font-bold text-brand-deep">{uploadProgress < 100 ? `Се качува… ${uploadProgress}%` : "Се зачувува…"}</p>}
+            {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
             <Button type="submit">Додај видео</Button>
           </form>
           <section className="panel divide-y">

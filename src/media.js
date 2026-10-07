@@ -127,26 +127,84 @@ async function uploadLargeVideo(file, onProgress) {
   }
 }
 
+const SMALL_VIDEO = 8 * 1024 * 1024;
+
+export function uploadStatus(update) {
+  if (typeof update === "number") return update < 100 ? `Се качува… ${update}%` : "Се зачувува…";
+  if (update?.phase === "shrink") return `Се стеснува… ${update.percent}%`;
+  return update?.percent < 100 ? `Се качува… ${update.percent}%` : "Се зачувува…";
+}
+
+async function shrinkVideo(file, onProgress) {
+  if (file.size < SMALL_VIDEO || typeof VideoEncoder === "undefined") return file;
+  onProgress?.({ phase: "shrink", percent: 1 });
+  let input;
+  try {
+    const { ALL_FORMATS, BlobSource, BufferTarget, Conversion, Input, Mp4OutputFormat, Output, Quality } = await import("mediabunny");
+    input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    const track = await input.getPrimaryVideoTrack();
+    if (!track) return file;
+    const height = track.displayHeight || 0;
+    const bitrate = await track.getAverageBitrate();
+    if (height > 0 && height <= 720 && bitrate && bitrate <= 1_100_000) return file;
+    const output = new Output({
+      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+      target: new BufferTarget(),
+    });
+    const conversion = await Conversion.init({
+      input,
+      output,
+      video: {
+        codec: "avc",
+        ...(height > 720 ? { height: 720 } : {}),
+        quality: new Quality({ bitrate: 850_000, bitrateMode: "variable" }),
+        hardwareAcceleration: "prefer-hardware",
+      },
+      audio: {
+        codec: "aac",
+        numberOfChannels: 1,
+        sampleRate: 44100,
+        quality: new Quality({ bitrate: 64_000 }),
+      },
+    });
+    if (!conversion.isValid) return file;
+    conversion.onProgress = (progress) => {
+      onProgress?.({ phase: "shrink", percent: Math.max(1, Math.min(99, Math.round(progress * 100))) });
+    };
+    await conversion.execute();
+    const buffer = output.target.buffer;
+    if (!buffer || buffer.byteLength >= file.size) return file;
+    const base = String(file.name || "video").replace(/\.[^.]+$/, "") || "video";
+    return new File([buffer], `${base}.mp4`, { type: "video/mp4" });
+  } catch {
+    return file;
+  } finally {
+    input?.dispose();
+  }
+}
+
 export async function uploadVideoFile(file, onProgress) {
   if (!file) return "";
-  if (file.size > LARGE_VIDEO) return uploadLargeVideo(file, onProgress);
-  const granted = await ticket("/api/media/ticket", file.name || "video.mp4");
+  const packed = await shrinkVideo(file, onProgress);
+  const reportUpload = (percent) => onProgress?.({ phase: "upload", percent });
+  if (packed.size > LARGE_VIDEO) return uploadLargeVideo(packed, reportUpload);
+  const granted = await ticket("/api/media/ticket", packed.name || "video.mp4");
   if (granted?.uploadUrl) {
     await sendFile({
       url: granted.uploadUrl,
       method: "PUT",
-      file,
-      headers: { "Content-Type": file.type || "video/mp4" },
-      onProgress,
+      file: packed,
+      headers: { "Content-Type": packed.type || "video/mp4" },
+      onProgress: reportUpload,
     });
     return granted.publicUrl;
   }
   const saved = await sendFile({
     url: "/api/media/video",
     method: "POST",
-    file,
-    headers: { ...authHeaders(), "X-File-Name": encodeURIComponent(file.name || "video.mp4") },
-    onProgress,
+    file: packed,
+    headers: { ...authHeaders(), "X-File-Name": encodeURIComponent(packed.name || "video.mp4") },
+    onProgress: reportUpload,
   });
   return saved.url;
 }
