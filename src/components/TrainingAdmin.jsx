@@ -81,7 +81,7 @@ export default function TrainingAdmin() {
         <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-          <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 720p. Во базата останува само врската, не самиот фајл.</span>
+          <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 1080p. Во базата останува само врската, не самиот фајл.</span>
         </div>
         {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
         <Button type="submit">Постави обука</Button>

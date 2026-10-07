@@ -278,8 +278,8 @@ export default function Admin() {
             <h2 className="section-heading">Ново видео</h2>
             <p className="text-sm text-muted-foreground">
               {storageMode === "remote"
-                ? "Снимката прво се стеснува до 720p, па оди на складот. Во базата останува само кратката врска, не самиот фајл."
-                : "Снимката се стеснува до 720p пред да се зачува. Во базата останува само кратката врска."}
+                ? "Снимката прво се стеснува до 1080p, па оди на складот. Во базата останува само кратката врска, не самиот фајл."
+                : "Снимката се стеснува до 1080p пред да се зачува. Во базата останува само кратката врска."}
             </p>
             <Field label="Наслов">
               <input className={inputClass} value={videoForm.title} onChange={(event) => setVideoForm({ ...videoForm, title: event.target.value })} required />

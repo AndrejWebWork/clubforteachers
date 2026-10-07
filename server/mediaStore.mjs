@@ -330,32 +330,30 @@ function runTool(command, args) {
 }
 
 export async function compressVideo(inputPath) {
-  const output = inputPath.replace(/\.[^.]+$/, "") + "-720.mp4";
+  const output = inputPath.replace(/\.[^.]+$/, "") + "-1080.mp4";
   try {
     await runTool("ffmpeg", [
       "-y",
       "-i",
       inputPath,
       "-vf",
-      "scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+      "scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
+      "fast",
       "-crf",
-      "32",
+      "28",
       "-maxrate",
-      "1200k",
+      "3500k",
       "-bufsize",
-      "2400k",
+      "7000k",
       "-pix_fmt",
       "yuv420p",
       "-c:a",
       "aac",
-      "-ac",
-      "1",
       "-b:a",
-      "64k",
+      "128k",
       "-movflags",
       "+faststart",
       "-map",

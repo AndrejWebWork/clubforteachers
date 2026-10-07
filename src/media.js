@@ -146,7 +146,7 @@ async function shrinkVideo(file, onProgress) {
     if (!track) return file;
     const height = track.displayHeight || 0;
     const bitrate = await track.getAverageBitrate();
-    if (height > 0 && height <= 720 && bitrate && bitrate <= 1_100_000) return file;
+    if (height > 0 && height <= 1080 && bitrate && bitrate <= 2_800_000) return file;
     const output = new Output({
       format: new Mp4OutputFormat({ fastStart: "in-memory" }),
       target: new BufferTarget(),
@@ -156,15 +156,15 @@ async function shrinkVideo(file, onProgress) {
       output,
       video: {
         codec: "avc",
-        ...(height > 720 ? { height: 720 } : {}),
-        quality: new Quality({ bitrate: 850_000, bitrateMode: "variable" }),
+        ...(height > 1080 ? { height: 1080 } : {}),
+        quality: new Quality({ bitrate: 2_500_000, bitrateMode: "variable" }),
         hardwareAcceleration: "prefer-hardware",
       },
       audio: {
         codec: "aac",
-        numberOfChannels: 1,
-        sampleRate: 44100,
-        quality: new Quality({ bitrate: 64_000 }),
+        numberOfChannels: 2,
+        sampleRate: 48000,
+        quality: new Quality({ bitrate: 128_000 }),
       },
     });
     if (!conversion.isValid) return file;
