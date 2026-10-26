@@ -73,10 +73,9 @@ export default function TrainingAdmin() {
           <input className={inputClass} placeholder="Категорија" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} />
           <input className={`${inputClass} sm:col-span-2`} placeholder="Траење" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} />
           <input className={inputClass} placeholder="Формат" value={form.format} onChange={(event) => setForm({ ...form, format: event.target.value })} />
-          <select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
+          <select className={inputClass} value={form.status === "Отворена" ? "Отворена" : "Затворена"} onChange={(event) => setForm({ ...form, status: event.target.value })}>
             <option>Отворена</option>
-            <option>Наскоро</option>
-            <option>Завршена</option>
+            <option>Затворена</option>
           </select>
           <select className={inputClass} value={form.module} onChange={(event) => setForm({ ...form, module: Number(event.target.value) })}>
             <option value={1}>Модул 1</option>

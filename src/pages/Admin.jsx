@@ -54,7 +54,8 @@ export default function Admin() {
   const [files, setFiles] = useState([]);
   const [messages, setMessages] = useState([]);
   const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", role: "teacher", school: "", title: "" });
-  const [videoForm, setVideoForm] = useState({ title: "", description: "", url: "" });
+  const [videoForm, setVideoForm] = useState({ title: "", description: "", url: "", trainingId: "" });
+  const [lessonTrainings, setLessonTrainings] = useState([]);
   const [imported, setImported] = useState([]);
   const [uploadNote, setUploadNote] = useState("");
   const [storageMode, setStorageMode] = useState("local");
@@ -63,16 +64,18 @@ export default function Admin() {
   const [mailForm, setMailForm] = useState({ subject: "", message: "", allTeachers: true, recipientIds: [], attachmentIds: [] });
 
   async function load() {
-    const [accountData, videoData, fileData, mailData] = await Promise.all([
+    const [accountData, videoData, fileData, mailData, trainingData] = await Promise.all([
       api.accounts(),
       api.videos(),
       api.attachments(),
       api.mail(),
+      api.trainings(),
     ]);
     setAccounts(accountData.accounts);
     setVideos(videoData.videos);
     setFiles(fileData.attachments);
     setMessages(mailData.messages);
+    setLessonTrainings(trainingData.trainings || []);
     const storage = await api.mediaStorage().catch(() => ({ mode: "local" }));
     setStorageMode(storage.mode || "local");
   }
@@ -264,23 +267,44 @@ export default function Admin() {
               run(async () => {
                 setUploadNote("");
                 const url = file ? await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update))) : videoForm.url.trim();
-                await api.addVideo({ ...videoForm, url });
-                setVideoForm({ title: "", description: "", url: "" });
+                await api.addVideo({ title: videoForm.title, description: videoForm.description, url });
+                const chosen = lessonTrainings.find((item) => item.id === videoForm.trainingId);
+                if (chosen) {
+                  await api.updateTraining(chosen.id, {
+                    title: chosen.title,
+                    category: chosen.category,
+                    description: chosen.description,
+                    duration: chosen.duration,
+                    format: chosen.format,
+                    level: chosen.level,
+                    status: chosen.status === "Отворена" ? "Отворена" : "Затворена",
+                    videoUrl: url,
+                    module: chosen.module,
+                  });
+                }
+                setVideoForm({ title: "", description: "", url: "", trainingId: "" });
                 if (videoFile.current) videoFile.current.value = "";
                 setUploadNote("");
                 setDone({
                   title: "Видеото е прикачено",
-                  text: `„${title}“ е успешно додадено. Наставниците го гледаат во Материјали.`,
+                  text: chosen ? `„${title}“ е во обуката „${chosen.title}“. Наставниците го гледаат кога ќе ја отворат обуката.` : `„${title}“ е зачувано во листата. Изберете обука за да се појави кај Обуки.`,
                 });
               }, Boolean(file));
             }}
           >
             <h2 className="section-heading">Ново видео</h2>
             <p className="text-sm text-muted-foreground">
+              Видеото оди директно во избраната обука. Прилозите не влегуваат во обуки: тие остануваат тука, а за наставниците се прикачуваат како ресурс или документ на клубот.
               {storageMode === "remote"
-                ? "Снимката прво се стеснува до 1080p, па оди на складот. Во базата останува само кратката врска, не самиот фајл."
-                : "Снимката се стеснува до 1080p пред да се зачува. Во базата останува само кратката врска."}
+                ? " Снимката прво се стеснува до 1080p, па оди на складот."
+                : " Снимката се стеснува до 1080p пред да се зачува."}
             </p>
+            <Field label="Обука">
+              <select className={inputClass} value={videoForm.trainingId} onChange={(event) => setVideoForm({ ...videoForm, trainingId: event.target.value })} required>
+                <option value="">Избери обука</option>
+                {lessonTrainings.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </select>
+            </Field>
             <Field label="Наслов">
               <input className={inputClass} value={videoForm.title} onChange={(event) => setVideoForm({ ...videoForm, title: event.target.value })} required />
             </Field>
@@ -342,6 +366,7 @@ export default function Admin() {
             }}
           >
             <h2 className="section-heading">Прикачи датотека</h2>
+            <p className="text-sm text-muted-foreground">Прилогот останува во админ панелот. За наставниците, датотеката се прикачува во Ресурси или во Документи на клубот.</p>
             <FilePick name="file" required />
             <Button type="submit">Прикачи</Button>
           </form>

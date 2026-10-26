@@ -143,9 +143,9 @@ export function FilePick({ inputRef, onChange, ...props }) {
       />
       <button type="button" className="file-pick-btn" onClick={() => localRef.current?.click()}>
         <Upload className="h-4 w-4" />
-        Одбери фајл
+        Прикачи фајл
       </button>
-      <span className={`file-pick-name${picked ? "" : " is-empty"}`}>{picked || "Нема избрана датотека"}</span>
+      {picked && <span className="file-pick-name">{picked}</span>}
     </div>
   );
 }
@@ -226,13 +226,34 @@ export function Signal({ label, className = "" }) {
   );
 }
 
-export function Avatar({ name, size = "md" }) {
+const PHOTO_KEY = "kn-photo";
+
+export function readProfilePhoto() {
+  try {
+    return localStorage.getItem(PHOTO_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveProfilePhoto(value) {
+  try {
+    if (value) localStorage.setItem(PHOTO_KEY, value);
+    else localStorage.removeItem(PHOTO_KEY);
+  } catch {
+    /* квотата на прелистувачот */
+  }
+  window.dispatchEvent(new Event("kn-photo"));
+}
+
+export function Avatar({ name, size = "md", photo = "" }) {
   const initials = name
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2);
   const box = size === "sm" ? "h-8 w-8 text-xs" : size === "lg" ? "h-20 w-20 text-xl" : "h-10 w-10 text-sm";
+  if (photo) return <img src={photo} alt="" className={`shrink-0 rounded-full object-cover ${box}`} />;
   return (
     <span className={`grid shrink-0 place-items-center rounded-full bg-brand-soft font-bold text-primary ${box}`}>
       {initials}

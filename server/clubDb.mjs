@@ -484,6 +484,13 @@ async function handle(method, url, req) {
     return { status: 200, body: { attachments: rows.map((row) => ({ id: row.id, name: row.name, mime: row.mime, size: row.size, url: row.url, createdAt: iso(row.created_at) })) } };
   }
 
+  if (method === "GET" && url === "/api/members") {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const { rows } = await pool.query("SELECT name FROM users ORDER BY name");
+    return { status: 200, body: { members: rows.map((row) => row.name).filter(Boolean) } };
+  }
+
   if (method === "GET" && url === "/api/accounts") {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;

@@ -10,11 +10,26 @@ import { Avatar, Button, SectionHead, Signal } from "../components/ui";
 const tone = { Обуки: "training", Настани: "event", Работилници: "workshop", Рокови: "deadline", "Други активности": "other" };
 
 const news = [
-  { to: "/nastani", klass: "news-mini important", type: "Настан", signal: "ВАЖНО", title: "Вебинар: Нови методи во наставата", date: "12 Јуни", meta: "Онлајн", image: images.webinar },
-  { to: "/resursi/aktivno-ucenje", klass: "news-mini", type: "Ресурс", signal: "НОВО", title: "Прирачник за активно учење", date: "10 Јуни", meta: "48 стр.", image: images.resource },
-  { to: "/obuki/digitalni-alatki", klass: "news-mini deadline", type: "Обука", signal: "ОТВОРЕНА ПРИЈАВА", title: "Дигитални алатки за активна настава", date: "9 Јуни", meta: "Онлајн", image: images.project, deadline: "30 Јуни" },
-  { to: "/oglasi", klass: "news-mini deadline urgent", type: "Оглас", signal: "ПОСЛЕДЕН ДЕН", title: "Летна школа за инклузивно образование", date: "8 Јуни", meta: "Повик", image: images.webinar, deadline: "15 Јуни" },
+  { to: "/nastani", title: "Вебинар: Нови методи во наставата", date: "12 Јуни", meta: "Онлајн", image: images.webinar },
+  { to: "/resursi/aktivno-ucenje", title: "Прирачник за активно учење", date: "10 Јуни", meta: "48 стр.", image: images.resource },
+  { to: "/obuki/digitalni-alatki", title: "Дигитални алатки за активна настава", date: "9 Јуни", meta: "Онлајн", image: images.project, deadline: "30 Јуни" },
+  { to: "/oglasi", title: "Летна школа за инклузивно образование", date: "8 Јуни", meta: "Повик", image: images.webinar, deadline: "15 Јуни" },
 ];
+
+const monthIndex = { јануари: 0, февруари: 1, март: 2, април: 3, мај: 4, јуни: 5, јули: 6, август: 7, септември: 8, октомври: 9, ноември: 10, декември: 11 };
+
+function deadlineLabel(text) {
+  const match = String(text).match(/(\d+)\s+(\S+)/);
+  const month = match ? monthIndex[match[2].toLocaleLowerCase("mk")] : undefined;
+  if (!match || month === undefined) return `Рок: ${text}`;
+  const due = new Date(2026, month, Number(match[1]));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due - today) / 86400000);
+  if (days < 0) return `Рокот измина · ${text}`;
+  if (days === 0) return "Рок: денес";
+  return `Рок: уште ${days} ${days === 1 ? "ден" : "дена"}`;
+}
 
 const kindFromType = { PDF: "Прирачник", PPTX: "Презентација", DOCX: "Документ", LINK: "Линк", VIDEO: "Видео", WEB: "Алатка" };
 
@@ -40,7 +55,6 @@ export default function Home() {
     api.notices().then((data) => setNotices(data.notices || [])).catch(() => setNotices([]));
     api.calendar().then((data) => setCalendarItems(data.items || [])).catch(() => setCalendarItems([]));
   }, []);
-  const deadlines = notices.filter((item) => item.priority).length;
   const today = calendarToday();
   const homeMonth = monthGrid(today.getFullYear(), today.getMonth());
   const todayStamp = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
@@ -51,11 +65,8 @@ export default function Home() {
         <div className="relative z-10 min-w-0 max-w-3xl flex-1">
           <span className="text-[11px] font-black uppercase text-brand-yellow">Заедница за развој и вмрежување</span>
           <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
-            {givenName ? `Добредојде ${givenName}, во Клубот на наставници!` : "Добредојде во Клубот на наставници!"}
+            {givenName ? `Добредојде ${givenName}` : "Добредојде"}
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-primary-foreground/80">
-            Твојата заедница за идеи, ресурси, поддршка и професионален развој. Имаш <b className="text-brand-yellow">{deadlines} огласи со рок</b> што бараат внимание.
-          </p>
           <Button asChild variant="yellow" className="cta-link mt-4">
             <Link to="/oglasi">Погледни што е ново <ArrowRight className="h-4 w-4" /></Link>
           </Button>
@@ -63,22 +74,20 @@ export default function Home() {
         <img src={images.hero} alt="" width={1536} height={768} className="hero-compact-img" />
       </section>
 
-      <section className="panel min-w-0">
-          <SectionHead icon={<Newspaper className="h-5 w-5" />} title="Последни можности" to="/obuki" />
+      <section className="panel home-opportunities min-w-0">
+          <SectionHead icon={<Newspaper className="h-5 w-5" />} title="Последни можности" to="/oglasi" />
           <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2 min-[1400px]:grid-cols-4">
             {news.map((item) => (
-              <Link key={item.title} to={item.to} className={item.klass}>
-                <div className="relative h-24 overflow-hidden">
+              <Link key={item.title} to={item.to} className="news-mini">
+                <div className="relative h-44 overflow-hidden">
                   <img src={item.image} alt="" width={992} height={672} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                  <Signal label={item.signal} className="absolute left-2 top-2" />
+                  {item.deadline && <span className="deadline-badge">{deadlineLabel(item.deadline)}</span>}
                 </div>
                 <div className="flex flex-1 flex-col p-3">
-                  <span className="text-[11px] font-black uppercase text-primary">{item.type}</span>
-                  <h3 className="mt-1 line-clamp-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
+                  <h3 className="line-clamp-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
                   <p className="mt-auto flex items-center gap-1 pt-2 text-xs font-semibold text-muted-foreground">
                     <Calendar className="h-3 w-3" />{item.date} · {item.meta}
                   </p>
-                  {item.deadline && <p className="news-deadline">РОК: {item.deadline}</p>}
                 </div>
               </Link>
             ))}
@@ -86,7 +95,7 @@ export default function Home() {
         </section>
 
       <div className="grid gap-5 min-[1100px]:grid-cols-2">
-        <section className="panel min-w-0">
+        <section className="panel home-board min-w-0">
           <SectionHead icon={<Megaphone className="h-5 w-5" />} title="Огласна табла" to="/oglasi" />
           <div className="space-y-2">
             {notices.slice(0, 5).map((item) => (
@@ -105,7 +114,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel min-w-0">
+        <section className="panel home-resources min-w-0">
           <SectionHead icon={<FolderOpen className="h-5 w-5" />} title="Ресурси" to="/resursi" />
           <div className="divide-y">
             {library.slice(0, 6).map((item) => {

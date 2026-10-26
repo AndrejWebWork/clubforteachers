@@ -26,7 +26,7 @@ export default function Certificate() {
     <div className="mx-auto max-w-3xl">
       <div className="no-print mb-4 flex gap-2">
         <Button asChild variant="outline"><Link to={`/obuki/${trainingId}`}>Назад кон обуката</Link></Button>
-        <Button type="button" onClick={() => window.print()}>Печати сертификат</Button>
+        <Button type="button" onClick={() => window.print()}>Симни PDF</Button>
       </div>
       <article className="certificate">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Клуб на наставници</p>

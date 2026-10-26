@@ -5,7 +5,7 @@ import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { downloadText } from "../download";
 import { placeFile } from "../media";
-import { Button, PageHeader, uploadFailed } from "../components/ui";
+import { Button, FilePick, PageHeader, uploadFailed } from "../components/ui";
 
 const kinds = ["Сите", "Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"];
 const kindFromType = { PDF: "Прирачник", PPTX: "Презентација", DOCX: "Документ", LINK: "Линк", VIDEO: "Видео", WEB: "Алатка" };
@@ -96,7 +96,7 @@ export function Resources() {
             </select>
           </div>
           <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Опис" value={draft.detail} onChange={(event) => setDraft({ ...draft, detail: event.target.value })} />
-          <input name="file" type="file" className="text-sm" />
+          <FilePick name="file" />
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Откажи</Button>
@@ -149,8 +149,10 @@ export function Resources() {
 
 export function ResourceDetail() {
   const { resourceId } = useParams();
+  const { isAdmin } = useApp();
   const [item, setItem] = useState(null);
   const [missing, setMissing] = useState(false);
+  const [removed, setRemoved] = useState("");
 
   useEffect(() => {
     api.resources().then((data) => {
@@ -160,6 +162,7 @@ export function ResourceDetail() {
     }).catch(() => setMissing(true));
   }, [resourceId]);
 
+  if (removed && !item) return <div className="panel">{removed} <Link className="font-bold text-primary" to="/resursi">Назад кон ресурси</Link></div>;
   if (missing) return <div className="panel">Ресурсот не е пронајден.</div>;
   if (!item) return <div className="panel">Се вчитува...</div>;
   return (
@@ -194,6 +197,25 @@ export function ResourceDetail() {
         >
           {item.type === "LINK" ? "Преземи го линкот" : "Преземи ресурс"}
         </Button>
+        {isAdmin && String(item.id).startsWith("res-") && (
+          <Button
+            type="button"
+            variant="outline"
+            className="ml-2"
+            onClick={async () => {
+              try {
+                await api.deleteResource(item.id);
+                setRemoved("Ресурсот е отстранет.");
+                setItem(null);
+              } catch (reason) {
+                setRemoved(reason.message);
+              }
+            }}
+          >
+            Отстрани ресурс
+          </Button>
+        )}
+        {removed && <p className="mt-3 text-sm font-semibold text-brand-deep">{removed}</p>}
       </article>
     </div>
   );

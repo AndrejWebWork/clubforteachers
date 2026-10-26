@@ -27,6 +27,9 @@ export default function TrainingPlayer() {
   const [length, setLength] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [quizNote, setQuizNote] = useState("");
+  const [awaitingEval, setAwaitingEval] = useState(false);
+  const [evalRating, setEvalRating] = useState("5");
+  const [evalComment, setEvalComment] = useState("");
 
   useEffect(() => {
     if (!signedIn) return;
@@ -142,7 +145,14 @@ export default function TrainingPlayer() {
         <Link to="/obuki"><ArrowLeft className="h-4 w-4" /> Назад кон обуките</Link>
       </Button>
       <PageHeader eyebrow={`Модул ${training.module || 1} · ${training.category}`} title={training.title} description={training.description} />
-      <p className="module-note">По завршување на вториот модул, кога ќе ги изгледате сите видеа, веднаш се појавува тест. Со точен тест добивате сертификат.</p>
+      <ol className="module-steps">
+        <li>Модул 1</li>
+        <li>Модул 2</li>
+        <li>Тест</li>
+        <li>Евалуација</li>
+        <li>Сертификат</li>
+      </ol>
+      <p className="module-note">Обуката има два модула. По видеото следува тест, потоа евалуација, па сертификат.</p>
       {training.videoUrl ? (
         <section className="lesson-player">
           <div className="lesson-stage">
@@ -213,9 +223,35 @@ export default function TrainingPlayer() {
 
       <section className="panel mt-5">
         <h2 className="section-heading">Тест</h2>
-        {!quizOpen && <p className="text-sm text-muted-foreground">Тестот се појавува откако ќе ги изгледате сите видеа од двата модула.</p>}
-        {quizOpen && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
-        {quizOpen && training.questions.length > 0 && (
+        {!quizOpen && !awaitingEval && <p className="text-sm text-muted-foreground">Тестот се појавува откако ќе го изгледате видеото од обуката.</p>}
+        {quizOpen && !awaitingEval && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
+        {awaitingEval && (
+          <form
+            className="grid gap-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setQuizNote("");
+              try {
+                await api.submitEvaluation(training.id, { rating: Number(evalRating), comment: evalComment });
+                navigate(`/obuki/${training.id}/sertifikat`);
+              } catch (reason) {
+                setQuizNote(reason.message);
+              }
+            }}
+          >
+            <p className="text-sm font-bold text-brand-deep">Тестот е точен. Пополнете ја евалуацијата за да се издаде сертификатот.</p>
+            <label className="text-sm font-bold text-brand-deep">
+              Оценка од 1 до 5
+              <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalRating} onChange={(event) => setEvalRating(event.target.value)}>
+                {["5", "4", "3", "2", "1"].map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </label>
+            <textarea required rows={4} className="rounded-md border bg-card px-3 py-2 text-sm" placeholder="Што беше корисно во обуката?" value={evalComment} onChange={(event) => setEvalComment(event.target.value)} />
+            {quizNote && <p className="text-sm font-semibold text-brand-urgent">{quizNote}</p>}
+            <Button type="submit">Испрати евалуација</Button>
+          </form>
+        )}
+        {quizOpen && !awaitingEval && training.questions.length > 0 && (
           <form
             className="grid gap-5"
             onSubmit={async (event) => {
@@ -225,6 +261,10 @@ export default function TrainingPlayer() {
                 const result = await api.submitQuiz(training.id, answers);
                 if (!result.passed) {
                   setQuizNote("Има неточен одговор. Проверете ги прашањата и обидете се повторно.");
+                  return;
+                }
+                if (result.needsEvaluation) {
+                  setAwaitingEval(true);
                   return;
                 }
                 navigate(`/obuki/${training.id}/sertifikat`);

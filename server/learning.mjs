@@ -88,6 +88,20 @@ export async function ensureLearning(pool) {
       issued_at timestamptz NOT NULL,
       UNIQUE (user_id, training_id)
     );
+    CREATE TABLE IF NOT EXISTS training_passes (
+      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      training_id text NOT NULL REFERENCES trainings(id) ON DELETE CASCADE,
+      passed_at timestamptz NOT NULL,
+      PRIMARY KEY (user_id, training_id)
+    );
+    CREATE TABLE IF NOT EXISTS training_evaluations (
+      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      training_id text NOT NULL REFERENCES trainings(id) ON DELETE CASCADE,
+      rating integer NOT NULL,
+      comment text NOT NULL,
+      created_at timestamptz NOT NULL,
+      PRIMARY KEY (user_id, training_id)
+    );
     CREATE TABLE IF NOT EXISTS library_items (
       id text PRIMARY KEY,
       kind text NOT NULL,
@@ -130,15 +144,23 @@ export async function ensureLearning(pool) {
     }
   }
 
-  const docs = await pool.query("SELECT COUNT(*)::int AS count FROM library_items WHERE kind = 'document'");
-  if (docs.rows[0].count === 0) {
-    for (const [index, item] of staticDocuments.entries()) {
-      await pool.query(
-        `INSERT INTO library_items (id, kind, title, category, type, author, detail, folder, size_label, featured, downloads, created_at)
-         VALUES ($1,'document',$2,$3,$4,'Клуб на наставници',$5,$6,$7,$8,0, NOW() - ($9 || ' days')::interval)`,
-        [`dok-${index + 1}`, item.title, item.folder, item.type, item.title, item.folder, item.size, Boolean(item.featured), String(index)],
-      );
-    }
+  const retiredTitles = [
+    "Годишна програма за работа",
+    "Шаблон за подготовка на час",
+    "Водич за формативно оценување",
+    "Евиденција за проектни активности",
+    "Согласност за учество на настан",
+    "Програма за менторска поддршка",
+  ];
+  await pool.query("DELETE FROM library_items WHERE kind = 'document' AND title = ANY($1::text[])", [retiredTitles]);
+  for (const [index, item] of staticDocuments.entries()) {
+    const found = await pool.query("SELECT id FROM library_items WHERE kind = 'document' AND title = $1", [item.title]);
+    if (found.rowCount) continue;
+    await pool.query(
+      `INSERT INTO library_items (id, kind, title, category, type, author, detail, folder, size_label, featured, downloads, created_at)
+       VALUES ($1,'document',$2,$3,$4,'Клуб на наставници',$5,$6,$7,false,0, NOW() - ($8 || ' days')::interval)`,
+      [`dok-club-${index + 1}`, item.title, item.folder, item.type, item.body || item.title, item.folder, item.size, String(index)],
+    );
   }
 }
 
@@ -173,13 +195,13 @@ function moduleNumber(value) {
   return Number(value) === 2 ? 2 : 1;
 }
 
-async function videosReady(pool, userId) {
+async function videosReady(pool, userId, trainingId) {
   const { rows } = await pool.query(
     `SELECT t.duration_seconds, COALESCE(p.furthest_seconds, 0) AS furthest
      FROM trainings t
      LEFT JOIN training_progress p ON p.training_id = t.id AND p.user_id = $1
-     WHERE t.video_url <> ''`,
-    [userId],
+     WHERE t.id = $2 AND t.video_url <> ''`,
+    [userId, trainingId],
   );
   if (!rows.length) return true;
   return rows.every((row) => Number(row.duration_seconds) > 0 && Number(row.furthest) >= Number(row.duration_seconds) - 3);
@@ -258,6 +280,17 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     return { status: 201, body: { resource: { id: itemId, title, category, type, author: auth.user.name, detail, fileUrl, downloads: 0, date: "денес" } } };
   }
 
+  const resourceItem = url.match(/^\/api\/resources\/([^/]+)$/);
+  if (method === "DELETE" && resourceItem) {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const existing = await pool.query("SELECT file_url FROM library_items WHERE id = $1 AND kind = 'resource'", [resourceItem[1]]);
+    if (!existing.rowCount) return { status: 404, body: { error: "Овој ресурс не може да се отстрани од тука." } };
+    await dropStored(root, uploadDir, existing.rows[0].file_url);
+    await pool.query("DELETE FROM library_items WHERE id = $1 AND kind = 'resource'", [resourceItem[1]]);
+    return { status: 200, body: { ok: true } };
+  }
+
   const resourceDownload = url.match(/^\/api\/resources\/([^/]+)\/download$/);
   if (method === "POST" && resourceDownload) {
     const { actor, user, guest } = await actorFrom(req, body);
@@ -287,7 +320,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   }
 
   if (method === "POST" && url === "/api/documents") {
-    const auth = await requireUser(req);
+    const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
     const title = text(body.title, 140);
     const type = text(body.type, 12) || "PDF";
@@ -319,7 +352,16 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   }
 
   if (method === "GET" && url === "/api/trainings") {
-    const { rows } = await pool.query("SELECT id, title, category, description, duration, format, level, status, image, video_url, module_no FROM trainings ORDER BY created_at DESC");
+    const auth = await requireUser(req);
+    const userId = auth.error ? null : auth.user.id;
+    const { rows } = await pool.query(
+      `SELECT id, title, category, description, duration, format, level, status, image, video_url, module_no,
+        CASE WHEN $1::uuid IS NULL THEN false ELSE EXISTS (
+          SELECT 1 FROM certificates c WHERE c.training_id = trainings.id AND c.user_id = $1::uuid
+        ) END AS certified
+       FROM trainings ORDER BY created_at DESC`,
+      [userId],
+    );
     return {
       status: 200,
       body: {
@@ -335,6 +377,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
           image: row.image,
           videoUrl: row.video_url,
           module: moduleNumber(row.module_no),
+          certified: Boolean(row.certified),
         })),
       },
     };
@@ -412,24 +455,49 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const duration = Number(training.rows[0].duration_seconds || 0);
     const finished = training.rows[0].video_url ? duration > 0 && furthest >= duration - 3 : furthest >= 1;
     if (!finished) return { status: 400, body: { error: "Прво догледајте ја обуката. Прескокнување напред не е дозволено." } };
-    if (!(await videosReady(pool, auth.user.id))) {
-      return { status: 400, body: { error: "Тестот се отвора откако ќе ги изгледате сите видеа од двата модула." } };
+    if (!(await videosReady(pool, auth.user.id, quizMatch[1]))) {
+      return { status: 400, body: { error: "Тестот се отвора откако ќе го изгледате видеото од обуката." } };
     }
     const questions = await questionsFor(pool, quizMatch[1]);
     if (!questions.length) return { status: 400, body: { error: "За оваа обука сè уште нема тест." } };
     const answers = Array.isArray(body.answers) ? body.answers.map(Number) : [];
     const passed = questions.every((question, index) => answers[index] === question.correct_index);
     if (!passed) return { status: 200, body: { passed: false } };
-    const existing = await pool.query("SELECT id, issued_at FROM certificates WHERE user_id = $1 AND training_id = $2", [auth.user.id, quizMatch[1]]);
-    let certificateId = existing.rows[0]?.id;
+    await pool.query(
+      `INSERT INTO training_passes (user_id, training_id, passed_at) VALUES ($1,$2, NOW())
+       ON CONFLICT (user_id, training_id) DO NOTHING`,
+      [auth.user.id, quizMatch[1]],
+    );
+    const existing = await pool.query("SELECT id FROM certificates WHERE user_id = $1 AND training_id = $2", [auth.user.id, quizMatch[1]]);
+    if (existing.rows[0]) return { status: 200, body: { passed: true, certificateId: existing.rows[0].id } };
+    return { status: 200, body: { passed: true, needsEvaluation: true } };
+  }
+
+  const evaluationMatch = url.match(/^\/api\/trainings\/([^/]+)\/evaluation$/);
+  if (method === "POST" && evaluationMatch) {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const rating = Number(body.rating);
+    const comment = text(body.comment, 2000);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { status: 400, body: { error: "Оценката е од 1 до 5." } };
+    if (!comment) return { status: 400, body: { error: "Напишете кратка евалуација." } };
+    const passed = await pool.query("SELECT 1 FROM training_passes WHERE user_id = $1 AND training_id = $2", [auth.user.id, evaluationMatch[1]]);
+    const already = await pool.query("SELECT id FROM certificates WHERE user_id = $1 AND training_id = $2", [auth.user.id, evaluationMatch[1]]);
+    if (!passed.rowCount && !already.rowCount) return { status: 400, body: { error: "Прво положете го тестот на обуката." } };
+    await pool.query(
+      `INSERT INTO training_evaluations (user_id, training_id, rating, comment, created_at) VALUES ($1,$2,$3,$4, NOW())
+       ON CONFLICT (user_id, training_id) DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, created_at = NOW()`,
+      [auth.user.id, evaluationMatch[1], rating, comment],
+    );
+    let certificateId = already.rows[0]?.id;
     if (!certificateId) {
       certificateId = fileId("cert");
       await pool.query(
         "INSERT INTO certificates (id, user_id, training_id, holder_name, issued_at) VALUES ($1,$2,$3,$4, NOW())",
-        [certificateId, auth.user.id, quizMatch[1], auth.user.name],
+        [certificateId, auth.user.id, evaluationMatch[1], auth.user.name],
       );
     }
-    return { status: 200, body: { passed: true, certificateId } };
+    return { status: 200, body: { certificateId } };
   }
 
   const progressMatch = url.match(/^\/api\/trainings\/([^/]+)\/progress$/);

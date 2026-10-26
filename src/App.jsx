@@ -13,7 +13,6 @@ import { Forum, Topic } from "./pages/Forum";
 import Notices from "./pages/Notices";
 import CalendarPage from "./pages/Calendar";
 import LegalPage from "./pages/Legal";
-import Materials from "./pages/Materials";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Seo from "./components/Seo";
@@ -38,7 +37,6 @@ export default function App() {
         <Route path="/forum/:topicId" element={<Topic />} />
         <Route path="/oglasi" element={<Notices />} />
         <Route path="/kalendar" element={<CalendarPage />} />
-        <Route path="/materijali" element={<Materials />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/objavi" element={<Navigate to="/obuki" replace />} />
         <Route path="/privatnost" element={<LegalPage path="/privatnost" />} />

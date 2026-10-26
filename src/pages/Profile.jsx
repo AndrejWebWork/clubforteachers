@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../api";
 import { defaultProfile, useApp } from "../compositor/AppCompositor";
-import { Avatar, Button, PageHeader } from "../components/ui";
+import { Avatar, Button, PageHeader, readProfilePhoto, saveProfilePhoto } from "../components/ui";
 
 const activity = [
   "Сподели ресурс „Методи за инклузивна настава“",
@@ -46,7 +46,39 @@ export default function Profile() {
   const [inviteNote, setInviteNote] = useState("");
   const [form, setForm] = useState(profile);
   const [error, setError] = useState("");
+  const [photo, setPhoto] = useState(readProfilePhoto);
+  const [certificates, setCertificates] = useState([]);
+  const shareLink = typeof window === "undefined" ? "https://clubforteachers.vercel.app" : window.location.origin;
   const wasEditing = useRef(false);
+
+  useEffect(() => {
+    api.trainings().then((data) => setCertificates((data.trainings || []).filter((item) => item.certified))).catch(() => setCertificates([]));
+  }, []);
+
+  function addPhoto(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const size = 320;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext("2d");
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+        const next = canvas.toDataURL("image/jpeg", 0.82);
+        saveProfilePhoto(next);
+        setPhoto(next);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     if (editing && !wasEditing.current) {
@@ -98,7 +130,7 @@ export default function Profile() {
             ["role", "Позиција"],
             ["school", "Училиште"],
             ["location", "Локација"],
-            ["areas", "Области"],
+            ["areas", "Предмети"],
           ].map(([field, label]) => (
             <label key={field} className="block">
               <span className="mb-1 block text-sm font-bold text-brand-deep">{label}</span>
@@ -139,7 +171,11 @@ export default function Profile() {
       )}
       <div className="grid gap-5 min-[1100px]:grid-cols-[280px_minmax(0,1fr)]">
         <section className="panel text-center">
-          <div className="flex justify-center"><Avatar name={profile.name} size="lg" /></div>
+          <div className="flex justify-center"><Avatar name={profile.name} size="lg" photo={photo} /></div>
+          <label className="mt-4 inline-flex cursor-pointer">
+            <input type="file" accept="image/*" className="sr-only" onChange={addPhoto} />
+            <span className="file-pick-btn">Додај слика</span>
+          </label>
           <h2 className="mt-4 text-xl font-bold text-brand-deep">{profile.name}</h2>
           <p className="text-sm text-muted-foreground">{profile.role}</p>
           <p className="mt-2 text-xs font-bold uppercase text-primary">{isAdmin ? "Пристап: раководител" : "Пристап: наставник"}</p>
@@ -147,10 +183,22 @@ export default function Profile() {
           <div className="mt-5 space-y-2 border-t pt-5 text-left text-sm">
             <p><b>Училиште:</b> {profile.school}</p>
             <p><b>Локација:</b> {profile.location}</p>
-            <p><b>Области:</b> {profile.areas}</p>
+            <p><b>Предмети:</b> {profile.areas}</p>
           </div>
         </section>
         <div className="space-y-5">
+          <section className="panel">
+            <h2 className="section-heading">Сертификати</h2>
+            {certificates.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема издаден сертификат. Се појавува откако ќе завршиш обука, тест и евалуација.</p>}
+            <div className="grid gap-3">
+              {certificates.map((item) => (
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-3">
+                  <b className="text-brand-deep">{item.title}</b>
+                  <Button asChild variant="outline"><Link to={`/obuki/${item.id}/sertifikat`}>Симни PDF</Link></Button>
+                </div>
+              ))}
+            </div>
+          </section>
           <section className="panel">
             <h2 className="section-heading">За мене</h2>
             <p className="text-sm leading-6 text-muted-foreground">{profile.bio}</p>
@@ -193,6 +241,8 @@ export default function Profile() {
                 className="h-11 flex-1 rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2"
               />
               <Button type="submit">Испрати покана</Button>
+              <Button type="button" variant="outline" onClick={() => navigator.clipboard.writeText(shareLink)}>Копирај линк</Button>
+              <Button type="button" variant="outline" onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`, "_blank", "noopener,noreferrer")}>Facebook</Button>
             </form>
             {inviteNote && <p className="mt-3 text-sm font-semibold text-brand-deep">{inviteNote}</p>}
           </section>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -18,7 +18,6 @@ import {
   Search,
   Shield,
   UserRound,
-  Video,
   X,
 } from "lucide-react";
 import { enablePush } from "../push";
@@ -27,7 +26,8 @@ import { pages } from "../site";
 import { useApp } from "../compositor/AppCompositor";
 import CookieConsent from "./CookieConsent";
 import { api } from "../api";
-import { Button, UploadToast } from "./ui";
+import Landing from "../pages/Landing";
+import { Button, readProfilePhoto, UploadToast } from "./ui";
 import MotionRoot from "../motion/MotionRoot";
 
 const icons = {
@@ -39,23 +39,35 @@ const icons = {
   "/forum": MessageCircle,
   "/oglasi": Megaphone,
   "/kalendar": CalendarDays,
-  "/materijali": Video,
   "/admin": Shield,
 };
 
 export default function Layout({ children }) {
   const { pathname } = useLocation();
-  const { profile, signedIn, isAdmin, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, setCookiesOpen, consent } = useApp();
+  const { profile, signedIn, isAdmin, authReady, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, setCookiesOpen, consent } = useApp();
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [invited, setInvited] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [photo, setPhoto] = useState(readProfilePhoto);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
   const initials = profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2);
   const [query, setQuery] = useState("");
   const [pushState, setPushState] = useState(() => (typeof Notification === "undefined" ? "unsupported" : Notification.permission));
   const navigate = useNavigate();
+  const shareLink = typeof window === "undefined" ? "https://clubforteachers.vercel.app" : window.location.origin;
+
+  useEffect(() => {
+    const sync = () => setPhoto(readProfilePhoto());
+    window.addEventListener("kn-photo", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("kn-photo", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   const results = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("mk");
@@ -71,6 +83,23 @@ export default function Layout({ children }) {
     ];
     return hits.filter((item) => item.title.toLocaleLowerCase("mk").includes(q)).slice(0, 6);
   }, [query, topics, documents]);
+
+  const quiet = ["/najava", "/odjava", "/privatnost", "/uslovi", "/kolacinja"];
+  if (!authReady) {
+    return <div className="grid min-h-screen place-items-center bg-background text-sm font-bold text-brand-deep">Се вчитува...</div>;
+  }
+  if (!signedIn && !quiet.includes(pathname)) return <Landing />;
+  if (!signedIn) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="flex items-center gap-3 px-6 py-5">
+          <Link to="/"><img src="/apple-touch-icon.png" alt="" className="h-11 w-11 rounded-md" /></Link>
+          <Link to="/" className="text-sm font-black uppercase text-brand-deep">Клуб на наставници</Link>
+        </header>
+        <main className="mx-auto w-full max-w-3xl px-4 pb-16">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background md:grid md:grid-cols-[252px_minmax(0,1fr)]">
@@ -88,7 +117,7 @@ export default function Layout({ children }) {
       >
         <div className="flex items-center justify-between px-2">
           <Link to="/" className="flex items-center gap-3 text-sidebar-primary-foreground" aria-label="Клуб на наставници">
-            <div className="brand-logo grid h-12 w-12 shrink-0 place-items-center text-xl font-black">КН</div>
+            <img src="/apple-touch-icon.png" alt="" className="h-12 w-12 shrink-0 rounded-md" />
             <div className="leading-tight">
               <div className="text-[10px] font-black uppercase">Клуб на</div>
               <div className="text-sm font-black uppercase">наставници</div>
@@ -100,7 +129,7 @@ export default function Layout({ children }) {
           </Button>
         </div>
         <nav className="relative z-10 mt-8 min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto">
-          {[...nav, ...(signedIn ? [{ label: "Материјали", to: "/materijali" }] : []), ...(isAdmin ? [{ label: "Админ", to: "/admin" }] : [])].map((item) => {
+          {[...nav, ...(isAdmin ? [{ label: "Админ", to: "/admin" }] : [])].map((item) => {
             const Icon = icons[item.to];
             const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
             return (
@@ -148,13 +177,9 @@ export default function Layout({ children }) {
             <Mail className="h-5 w-5 shrink-0" />
             Контактирај нè
           </button>
-          <div className="flex items-end gap-3 px-2 pt-2 text-sidebar-primary-foreground/70" aria-hidden="true">
-            <span className="text-4xl font-black text-sidebar-primary">››</span>
-            <span className="mb-2 grid grid-cols-3 gap-1.5">
-              {Array.from({ length: 9 }).map((_, index) => (
-                <i key={index} className="h-1.5 w-1.5 rounded-full bg-brand-yellow" />
-              ))}
-            </span>
+          <div className="lead-mark" aria-label="LEAD">
+            <small>поддржано од</small>
+            <b>LEAD</b>
           </div>
         </div>
       </aside>
@@ -213,9 +238,13 @@ export default function Layout({ children }) {
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
               >
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-bold text-primary">
-                  {initials}
-                </span>
+                {photo ? (
+                  <img src={photo} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-bold text-primary">
+                    {initials}
+                  </span>
+                )}
                 <span className="hidden max-w-40 truncate lg:inline">
                   {profile.name}
                   {isAdmin && <small className="ml-2 rounded bg-brand-pale px-1.5 py-0.5 text-[10px] font-black uppercase text-brand-deep">Раководител</small>}
@@ -243,7 +272,7 @@ export default function Layout({ children }) {
         <main id="sodrzina" className="mx-auto w-full max-w-[1500px] flex-1 p-4 sm:p-6 lg:p-8">
           {consent && pushState === "default" && (
             <div className="push-banner">
-              <p>Известувањата за огласната табла, календарот и форумот се вклучени. Дозволи ги во прелистувачот за да стигнуваат и кога страницата е затворена.</p>
+              <p>Известувањата за огласната табла, календарот и форумот се вклучени. Овозможи ја опцијата известувања во прелистувачот за да ги добиваш известувањеата и кога не си на страницата.</p>
               <button
                 type="button"
                 onClick={() => {
@@ -303,6 +332,13 @@ export default function Layout({ children }) {
                   <input required type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="kolega@uciliste.mk" className="mt-1.5 h-11 w-full rounded-md border bg-card px-3 text-sm font-medium" />
                 </label>
                 <Button type="submit" className="w-full">Испрати покана</Button>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Button type="button" variant="outline" onClick={async () => { await navigator.clipboard.writeText(shareLink); setCopied(true); }}>
+                    {copied ? "Копирано" : "Копирај линк"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`, "_blank", "noopener,noreferrer")}>Facebook</Button>
+                  <Button type="button" variant="outline" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Клуб на наставници ${shareLink}`)}`, "_blank", "noopener,noreferrer")}>WhatsApp</Button>
+                </div>
               </form>
             )}
           </div>

@@ -33,7 +33,7 @@ export default function Notices() {
             <span className="push-pin" aria-hidden="true" />
             <div className="flex items-center justify-between gap-2">
               <span className="type-chip">{item.category}</span>
-              <span className="pin-date"><b>{item.day}</b> {item.month}</span>
+              <span className="pin-date"><small>Рок за пријава</small><b>{item.day}</b> {item.month}</span>
             </div>
             <h3 className="mt-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.text}</p>
