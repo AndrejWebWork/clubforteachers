@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -27,7 +27,7 @@ import { useApp } from "../compositor/AppCompositor";
 import CookieConsent from "./CookieConsent";
 import { api } from "../api";
 import Landing from "../pages/Landing";
-import { Button, readProfilePhoto, UploadToast } from "./ui";
+import { Button, UploadToast } from "./ui";
 import MotionRoot from "../motion/MotionRoot";
 
 const icons = {
@@ -50,7 +50,6 @@ export default function Layout({ children }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [invited, setInvited] = useState("");
   const [copied, setCopied] = useState(false);
-  const [photo, setPhoto] = useState(readProfilePhoto);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
   const initials = profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2);
@@ -58,16 +57,6 @@ export default function Layout({ children }) {
   const [pushState, setPushState] = useState(() => (typeof Notification === "undefined" ? "unsupported" : Notification.permission));
   const navigate = useNavigate();
   const shareLink = typeof window === "undefined" ? "https://clubforteachers.vercel.app" : window.location.origin;
-
-  useEffect(() => {
-    const sync = () => setPhoto(readProfilePhoto());
-    window.addEventListener("kn-photo", sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener("kn-photo", sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
 
   const results = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("mk");
@@ -238,8 +227,8 @@ export default function Layout({ children }) {
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
               >
-                {photo ? (
-                  <img src={photo} alt="" className="h-9 w-9 rounded-full object-cover" />
+                {profile.photo ? (
+                  <img src={profile.photo} alt="" className="h-9 w-9 rounded-full object-cover" />
                 ) : (
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-bold text-primary">
                     {initials}

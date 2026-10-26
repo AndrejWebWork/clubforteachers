@@ -54,7 +54,7 @@ export default function Admin() {
   const [files, setFiles] = useState([]);
   const [messages, setMessages] = useState([]);
   const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", role: "teacher", school: "", title: "" });
-  const [videoForm, setVideoForm] = useState({ title: "", description: "", url: "", trainingId: "" });
+  const [videoForm, setVideoForm] = useState({ title: "", description: "", url: "", trainingId: "", modulePosition: "1" });
   const [lessonTrainings, setLessonTrainings] = useState([]);
   const [imported, setImported] = useState([]);
   const [uploadNote, setUploadNote] = useState("");
@@ -241,6 +241,7 @@ export default function Admin() {
                     <b className="text-brand-deep">{account.name}</b>
                     <p className="text-sm text-muted-foreground">{account.email} · {account.school}</p>
                   </div>
+                  <div className="grid gap-2">
                   <select
                     className={inputClass}
                     value={account.role}
@@ -249,6 +250,15 @@ export default function Admin() {
                     <option value="teacher">Наставник</option>
                     <option value="admin">Раководител</option>
                   </select>
+                  <select
+                    className={inputClass}
+                    value={account.membership === "polno" ? "polno" : "osnovno"}
+                    onChange={(event) => run(() => api.setMembership(account.id, event.target.value))}
+                  >
+                    <option value="osnovno">Основно членство</option>
+                    <option value="polno">Полно членство</option>
+                  </select>
+                  </div>
                 </div>
               ))}
             </div>
@@ -277,12 +287,13 @@ export default function Admin() {
                     duration: chosen.duration,
                     format: chosen.format,
                     level: chosen.level,
-                    status: chosen.status === "Отворена" ? "Отворена" : "Затворена",
+                    status: chosen.status,
                     videoUrl: url,
                     module: chosen.module,
+                    modulePosition: Number(videoForm.modulePosition),
                   });
                 }
-                setVideoForm({ title: "", description: "", url: "", trainingId: "" });
+                setVideoForm({ title: "", description: "", url: "", trainingId: "", modulePosition: "1" });
                 if (videoFile.current) videoFile.current.value = "";
                 setUploadNote("");
                 setDone({
@@ -294,7 +305,7 @@ export default function Admin() {
           >
             <h2 className="section-heading">Ново видео</h2>
             <p className="text-sm text-muted-foreground">
-              Видеото оди директно во избраната обука. Прилозите не влегуваат во обуки: тие остануваат тука, а за наставниците се прикачуваат како ресурс или документ на клубот.
+              Видеото влегува во избраниот модул од обуката. Прилогот се појавува кај Ресурси и раководителот може да го отстрани.
               {storageMode === "remote"
                 ? " Снимката прво се стеснува до 1080p, па оди на складот."
                 : " Снимката се стеснува до 1080p пред да се зачува."}
@@ -303,6 +314,12 @@ export default function Admin() {
               <select className={inputClass} value={videoForm.trainingId} onChange={(event) => setVideoForm({ ...videoForm, trainingId: event.target.value })} required>
                 <option value="">Избери обука</option>
                 {lessonTrainings.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </select>
+            </Field>
+            <Field label="Модул">
+              <select className={inputClass} value={videoForm.modulePosition} onChange={(event) => setVideoForm({ ...videoForm, modulePosition: event.target.value })}>
+                <option value="1">Модул 1</option>
+                <option value="2">Модул 2</option>
               </select>
             </Field>
             <Field label="Наслов">
@@ -366,7 +383,7 @@ export default function Admin() {
             }}
           >
             <h2 className="section-heading">Прикачи датотека</h2>
-            <p className="text-sm text-muted-foreground">Прилогот останува во админ панелот. За наставниците, датотеката се прикачува во Ресурси или во Документи на клубот.</p>
+            <p className="text-sm text-muted-foreground">Прилогот веднаш се појавува во Ресурси. Оттаму може да се отстрани ако не е соодветен.</p>
             <FilePick name="file" required />
             <Button type="submit">Прикачи</Button>
           </form>

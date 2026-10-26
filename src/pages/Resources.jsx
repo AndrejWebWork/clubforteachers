@@ -197,7 +197,7 @@ export function ResourceDetail() {
         >
           {item.type === "LINK" ? "Преземи го линкот" : "Преземи ресурс"}
         </Button>
-        {isAdmin && String(item.id).startsWith("res-") && (
+        {isAdmin && (
           <Button
             type="button"
             variant="outline"

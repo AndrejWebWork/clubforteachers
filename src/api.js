@@ -75,6 +75,11 @@ export const api = {
     return request("/api/accounts/import", { method: "POST", body: { name: file.name, text: await file.text() } });
   },
   setRole: (id, role) => request(`/api/accounts/${id}`, { method: "PATCH", body: { role } }),
+  setMembership: (id, membership) => request(`/api/accounts/${id}`, { method: "PATCH", body: { membership } }),
+  masterclasses: () => request("/api/masterclasses"),
+  addMasterclass: (body) => request("/api/masterclasses", { method: "POST", body }),
+  deleteMasterclass: (id) => request(`/api/masterclasses/${id}`, { method: "DELETE" }),
+  submitMasterclassEvaluation: (id, body) => request(`/api/masterclasses/${id}/evaluation`, { method: "POST", body }),
   mediaStorage: () => request("/api/media/storage"),
   videos: () => request("/api/videos"),
   addVideo: (body) => request("/api/videos", { method: "POST", body }),

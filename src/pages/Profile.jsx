@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../api";
 import { defaultProfile, useApp } from "../compositor/AppCompositor";
-import { Avatar, Button, PageHeader, readProfilePhoto, saveProfilePhoto } from "../components/ui";
+import { Avatar, Button, PageHeader } from "../components/ui";
 
 const activity = [
   "Сподели ресурс „Методи за инклузивна настава“",
@@ -46,7 +46,7 @@ export default function Profile() {
   const [inviteNote, setInviteNote] = useState("");
   const [form, setForm] = useState(profile);
   const [error, setError] = useState("");
-  const [photo, setPhoto] = useState(readProfilePhoto);
+  const [photo, setPhoto] = useState(profile.photo || "");
   const [certificates, setCertificates] = useState([]);
   const shareLink = typeof window === "undefined" ? "https://clubforteachers.vercel.app" : window.location.origin;
   const wasEditing = useRef(false);
@@ -54,6 +54,10 @@ export default function Profile() {
   useEffect(() => {
     api.trainings().then((data) => setCertificates((data.trainings || []).filter((item) => item.certified))).catch(() => setCertificates([]));
   }, []);
+
+  useEffect(() => {
+    setPhoto(profile.photo || "");
+  }, [profile.photo]);
 
   function addPhoto(event) {
     const file = event.target.files?.[0];
@@ -71,9 +75,8 @@ export default function Profile() {
         const width = image.width * scale;
         const height = image.height * scale;
         context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
-        const next = canvas.toDataURL("image/jpeg", 0.82);
-        saveProfilePhoto(next);
-        setPhoto(next);
+        const next = canvas.toDataURL("image/jpeg", 0.72);
+        saveProfile({ ...profile, photo: next }).then(() => setPhoto(next)).catch((reason) => setError(reason.message));
       };
       image.src = reader.result;
     };

@@ -27,6 +27,7 @@ export default function TrainingPlayer() {
   const [length, setLength] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [quizNote, setQuizNote] = useState("");
+  const [activeId, setActiveId] = useState("");
   const [awaitingEval, setAwaitingEval] = useState(false);
   const [evalRating, setEvalRating] = useState("5");
   const [evalComment, setEvalComment] = useState("");
@@ -40,16 +41,25 @@ export default function TrainingPlayer() {
         setFurthest(data.training.progress.furthest);
         setTime(data.training.progress.position);
         setAnswers(data.training.questions.map(() => -1));
+        const first = data.training.modules?.[0];
+        if (first) {
+          setActiveId(first.id);
+          furthestRef.current = first.progress.furthest;
+          setFurthest(first.progress.furthest);
+          setTime(first.progress.position);
+        }
       })
       .catch((reason) => setError(reason.message));
   }, [signedIn, trainingId]);
 
+  const active = training?.modules?.find((item) => item.id === activeId) || training?.modules?.[0] || null;
+
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !training?.videoUrl) return;
+    if (!video || !active?.videoUrl) return;
     const place = () => {
       if (Number.isFinite(video.duration)) setLength(video.duration);
-      const start = Math.min(training.progress.position || 0, furthestRef.current);
+      const start = Math.min(active.progress.position || 0, furthestRef.current);
       if (Math.abs(video.currentTime - start) > 0.4) video.currentTime = start;
     };
     const guard = () => {
@@ -81,16 +91,17 @@ export default function TrainingPlayer() {
       video.removeEventListener("ratechange", guard);
       video.removeEventListener("timeupdate", tick);
     };
-  }, [training]);
+  }, [active]);
 
   useEffect(() => {
-    if (!training?.videoUrl) return;
+    if (!active?.videoUrl) return;
     const timer = setInterval(() => {
       const video = videoRef.current;
       const watched = pendingRef.current;
       pendingRef.current = 0;
       if (!video || watched <= 0) return;
       api.saveProgress(training.id, {
+        moduleId: active.id,
         position: video.currentTime,
         watched,
         duration: Number.isFinite(video.duration) ? video.duration : 0,
@@ -99,7 +110,7 @@ export default function TrainingPlayer() {
         setFurthest(data.furthest);
         if (video.currentTime > data.furthest + 1.5) video.currentTime = data.furthest;
         const known = Number.isFinite(video.duration) ? video.duration : 0;
-        if (known > 0 && data.furthest >= known - 3) {
+        if (data.modulesReady || (known > 0 && data.furthest >= known - 3)) {
           api.training(training.id).then((fresh) => {
             setTraining((current) => current ? { ...current, modulesReady: fresh.training.modulesReady } : current);
           }).catch(() => {});
@@ -107,7 +118,7 @@ export default function TrainingPlayer() {
       }).catch(() => {});
     }, 4000);
     return () => clearInterval(timer);
-  }, [training]);
+  }, [active, training]);
 
   if (!authReady) return <section className="panel">Се вчитува...</section>;
   if (!signedIn) {
@@ -121,9 +132,8 @@ export default function TrainingPlayer() {
   if (error) return <section className="panel">{error}</section>;
   if (!training) return <section className="panel">Се вчитува обуката...</section>;
 
-  const duration = length || training.durationSeconds || 0;
-  const finished = training.videoUrl ? duration > 0 && furthest >= duration - 3 : furthest >= 1;
-  const quizOpen = finished && training.modulesReady;
+  const duration = length || active?.durationSeconds || 0;
+  const quizOpen = Boolean(training.modulesReady);
 
   function rewind() {
     const node = videoRef.current;
@@ -144,21 +154,35 @@ export default function TrainingPlayer() {
       <Button asChild variant="ghost" className="no-print mb-4">
         <Link to="/obuki"><ArrowLeft className="h-4 w-4" /> Назад кон обуките</Link>
       </Button>
-      <PageHeader eyebrow={`Модул ${training.module || 1} · ${training.category}`} title={training.title} description={training.description} />
-      <ol className="module-steps">
-        <li>Модул 1</li>
-        <li>Модул 2</li>
-        <li>Тест</li>
-        <li>Евалуација</li>
-        <li>Сертификат</li>
-      </ol>
-      <p className="module-note">Обуката има два модула. По видеото следува тест, потоа евалуација, па сертификат.</p>
-      {training.videoUrl ? (
+      <PageHeader eyebrow={training.category} title={training.title} description={training.description} />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(training.modules || []).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`sort-chip ${active?.id === item.id ? "active" : ""}`}
+            onClick={() => {
+              setActiveId(item.id);
+              furthestRef.current = item.progress.furthest;
+              setFurthest(item.progress.furthest);
+              setTime(item.progress.position);
+              setLength(item.durationSeconds || 0);
+              setPlaying(false);
+              pendingRef.current = 0;
+            }}
+          >
+            {item.title}{item.videoUrl ? "" : " · без видео"}
+          </button>
+        ))}
+      </div>
+      <p className="module-note">Изгледајте го видеото на секој модул. Потоа следува тест, евалуација и сертификат.</p>
+      {active?.videoUrl ? (
         <section className="lesson-player">
           <div className="lesson-stage">
             <video
+              key={active.id}
               ref={videoRef}
-              src={training.videoUrl}
+              src={active.videoUrl}
               playsInline
               controls={false}
               onClick={toggle}
@@ -207,23 +231,22 @@ export default function TrainingPlayer() {
         </section>
       ) : (
         <section className="panel">
-          <p className="leading-7">{training.description}</p>
-          <Button
-            className="mt-4"
-            type="button"
-            onClick={() => api.saveProgress(training.id, { position: 1, watched: 0, completed: true }).then((data) => {
-              furthestRef.current = data.furthest;
-              setFurthest(data.furthest);
-            })}
-          >
-            Продолжи кон тестот
-          </Button>
+          <p className="leading-7">За {active?.title || "овој модул"} сè уште нема поставено видео.</p>
+          {!training.modules?.some((item) => item.videoUrl) && (
+            <Button
+              className="mt-4"
+              type="button"
+              onClick={() => api.saveProgress(training.id, { position: 1, watched: 0, completed: true }).then(() => api.training(training.id)).then((fresh) => setTraining(fresh.training))}
+            >
+              Продолжи кон тестот
+            </Button>
+          )}
         </section>
       )}
 
       <section className="panel mt-5">
         <h2 className="section-heading">Тест</h2>
-        {!quizOpen && !awaitingEval && <p className="text-sm text-muted-foreground">Тестот се појавува откако ќе го изгледате видеото од обуката.</p>}
+        {!quizOpen && !awaitingEval && <p className="text-sm text-muted-foreground">Тестот се појавува откако ќе ги изгледате видеата од модулите.</p>}
         {quizOpen && !awaitingEval && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
         {awaitingEval && (
           <form

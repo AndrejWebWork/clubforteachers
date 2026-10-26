@@ -108,6 +108,8 @@ function publicUser(user) {
     location: user.location || "",
     areas: user.areas || "",
     bio: user.bio || "",
+    photo: user.photo || "",
+    membership: user.membership === "polno" ? "polno" : "osnovno",
     interests: user.interests || [],
     skills: user.skills || [],
   };
@@ -124,6 +126,8 @@ function mapUser(row) {
     location: row.location || "",
     areas: row.areas || "",
     bio: row.bio || "",
+    photo: row.photo_url || "",
+    membership: row.membership === "polno" ? "polno" : "osnovno",
     interests: Array.isArray(row.interests) ? row.interests : [],
     skills: Array.isArray(row.skills) ? row.skills : [],
     passwordHash: row.password_hash,
@@ -222,7 +226,10 @@ async function setup() {
     )
   `);
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS access text");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url text NOT NULL DEFAULT ''");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS membership text NOT NULL DEFAULT 'osnovno'");
   await pool.query("UPDATE users SET access = 'teacher' WHERE access IS NULL OR access = ''");
+  await pool.query("UPDATE users SET membership = 'osnovno' WHERE membership IS NULL OR membership = ''");
 
   const teacher = await pool.query("SELECT id FROM users WHERE email = 'ilija@klub.mk'");
   const teacherId = teacher.rows[0]?.id;
@@ -520,7 +527,7 @@ async function handle(method, url, req) {
   let body = {};
   if (method === "POST" || method === "PATCH" || method === "PUT") {
     const heavy = ["/api/documents", "/api/resources", "/api/attachments", "/api/accounts/import"].includes(url) || url.startsWith("/api/trainings");
-    const limit = url === "/api/media/upload/finish" ? 1_000_000 : heavy ? 8_000_000 : 100_000;
+    const limit = url === "/api/media/upload/finish" ? 1_000_000 : url === "/api/me" ? 300_000 : heavy ? 8_000_000 : 100_000;
     try {
       body = await readBody(req, limit);
     } catch (error) {
@@ -602,9 +609,15 @@ async function handle(method, url, req) {
     const interests = Array.isArray(body.interests) ? body.interests.map((item) => text(item, 40)).filter(Boolean) : [];
     const skills = Array.isArray(body.skills) ? body.skills.map((item) => text(item, 40)).filter(Boolean) : [];
     if (!name || !title) return { status: 400, body: { error: "Името и позицијата се задолжителни." } };
+    let photo = null;
+    if (typeof body.photo === "string") {
+      if (!body.photo) photo = "";
+      else if (body.photo.startsWith("data:image/jpeg;base64,") && body.photo.length < 200000) photo = body.photo;
+      else return { status: 400, body: { error: "Сликата мора да биде мала JPEG-датотека." } };
+    }
     await pool.query(
-      "UPDATE users SET name = $1, role = $2, school = $3, location = $4, areas = $5, bio = $6, interests = $7::jsonb, skills = $8::jsonb WHERE id = $9",
-      [name, title, school, location, areas, bio, JSON.stringify(interests), JSON.stringify(skills), auth.user.id],
+      "UPDATE users SET name = $1, role = $2, school = $3, location = $4, areas = $5, bio = $6, interests = $7::jsonb, skills = $8::jsonb, photo_url = COALESCE($10, photo_url) WHERE id = $9",
+      [name, title, school, location, areas, bio, JSON.stringify(interests), JSON.stringify(skills), auth.user.id, photo],
     );
     const updated = await pool.query("SELECT * FROM users WHERE id = $1", [auth.user.id]);
     return { status: 200, body: { user: publicUser(mapUser(updated.rows[0])) } };
@@ -775,13 +788,21 @@ async function handle(method, url, req) {
     const found = await pool.query("SELECT * FROM users WHERE id = $1", [accountMatch[1]]);
     if (!found.rows[0]) return { status: 404, body: { error: "Сметката не е пронајдена." } };
     const user = mapUser(found.rows[0]);
+    if (body.membership === "osnovno" || body.membership === "polno") {
+      await pool.query("UPDATE users SET membership = $1 WHERE id = $2", [body.membership, user.id]);
+      if (!body.role) {
+        const fresh = await pool.query("SELECT * FROM users WHERE id = $1", [user.id]);
+        return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
+      }
+    }
     const role = body.role === "admin" ? "admin" : "teacher";
     if (user.role === "admin" && role !== "admin") {
       const admins = await pool.query("SELECT COUNT(*)::int AS count FROM users WHERE access = 'admin'");
       if (admins.rows[0].count < 2) return { status: 400, body: { error: "Мора да остане барем еден раководител." } };
     }
     await pool.query("UPDATE users SET access = $1 WHERE id = $2", [role, user.id]);
-    return { status: 200, body: { account: { ...publicUser(user), role } } };
+    const fresh = await pool.query("SELECT * FROM users WHERE id = $1", [user.id]);
+    return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
   }
 
   if (method === "POST" && url === "/api/videos") {
@@ -840,6 +861,11 @@ async function handle(method, url, req) {
         "INSERT INTO attachments (id, name, mime, size, stored, url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
         [fileId, name, mime, size, decodeURIComponent(linked.split("/").pop()), linked, createdAt],
       );
+      await pool.query(
+        `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, size_label, created_at)
+         VALUES ($1,'resource',$2,'Прилози',$3,$4,$2,$5,'', NOW())`,
+        [`res-${fileId}`, name, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), auth.user.name, linked],
+      );
       return { status: 201, body: { attachment: { id: fileId, name, mime, size, url: linked, createdAt } } };
     }
     const raw = String(body.data || "");
@@ -857,6 +883,11 @@ async function handle(method, url, req) {
       "INSERT INTO attachments (id, name, mime, size, stored, url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
       [fileId, name, mime, buffer.length, kept.key || path.basename(kept.url), kept.url, createdAt],
     );
+    await pool.query(
+      `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, size_label, created_at)
+       VALUES ($1,'resource',$2,'Прилози',$3,$4,$2,$5,'', NOW())`,
+      [`res-${fileId}`, name, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), auth.user.name, kept.url],
+    );
     return { status: 201, body: { attachment: { id: fileId, name, mime, size: buffer.length, url: kept.url, createdAt } } };
   }
 
@@ -867,6 +898,7 @@ async function handle(method, url, req) {
     const found = await pool.query("SELECT url, stored FROM attachments WHERE id = $1", [fileMatch[1]]);
     const { dropStored } = await import("./mediaStore.mjs");
     await dropStored(root, uploadDir, found.rows[0]?.url || (found.rows[0]?.stored ? `/uploads/${path.basename(found.rows[0].stored)}` : ""));
+    await pool.query("DELETE FROM library_items WHERE id = $1 AND kind = 'resource'", [`res-${fileMatch[1]}`]);
     await pool.query("DELETE FROM attachments WHERE id = $1", [fileMatch[1]]);
     return { status: 200, body: { ok: true } };
   }

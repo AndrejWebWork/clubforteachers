@@ -45,6 +45,8 @@ function profileFromUser(user) {
     location: user.location || defaultProfile.location,
     areas: user.areas || defaultProfile.areas,
     bio: user.bio || defaultProfile.bio,
+    photo: user.photo || "",
+    membership: user.membership === "polno" ? "polno" : "osnovno",
     interests: user.interests?.length ? user.interests : defaultProfile.interests,
     skills: user.skills?.length ? user.skills : defaultProfile.skills,
     accountId: user.id,
@@ -263,6 +265,7 @@ export function AppCompositor({ children }) {
           bio: next.bio.trim(),
           interests: next.interests.map((item) => item.trim()).filter(Boolean),
           skills: next.skills.map((item) => item.trim()).filter(Boolean),
+          ...(typeof next.photo === "string" ? { photo: next.photo } : {}),
         });
         setUser(data.user);
         setProfile(profileFromUser(data.user));

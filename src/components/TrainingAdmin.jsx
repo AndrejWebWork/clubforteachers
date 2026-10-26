@@ -12,7 +12,7 @@ export default function TrainingAdmin() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [done, setDone] = useState(null);
-  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "1 час и 30 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
   const [editing, setEditing] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [uploadNote, setUploadNote] = useState("");
@@ -56,7 +56,7 @@ export default function TrainingAdmin() {
             setUploadNote("");
             if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
             await api.addTraining(payload);
-            setForm({ title: "", category: "Обука", description: "", duration: "1 час и 30 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+            setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
             setUploadNote("");
             node.reset();
             setDone({
