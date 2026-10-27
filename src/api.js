@@ -33,6 +33,7 @@ async function request(path, { method = "GET", body } = {}) {
 }
 
 export const api = {
+  boot: () => request("/api/boot"),
   me: () => request("/api/me"),
   updateProfile: (body) => request("/api/me", { method: "PATCH", body }),
   login: async (email, password) => {

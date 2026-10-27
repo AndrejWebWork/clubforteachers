@@ -136,6 +136,7 @@ export function AppCompositor({ children }) {
   const [forumCategory, setForumCategory] = useState("Сите");
   const [consent, setConsent] = useState(loadConsent);
   const [cookiesOpen, setCookiesOpen] = useState(false);
+  const [homeFeed, setHomeFeed] = useState({ resources: [], notices: [], calendar: [] });
 
   useEffect(() => {
     if (signedIn) localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -145,36 +146,27 @@ export function AppCompositor({ children }) {
     let cancel = false;
     (async () => {
       try {
-        const data = await api.me();
+        const data = await api.boot();
         if (!cancel && data.user) {
           setUser(data.user);
           setProfile(profileFromUser(data.user));
           setSignedIn(true);
-        }
-      } catch {
-        setToken(null);
-      }
-      try {
-        const data = await api.posts();
-        if (!cancel) {
           setTopics((current) =>
-            data.posts.map((post) => {
+            (data.posts || []).map((post) => {
               const local = current.find((item) => item.id === post.id);
               return local && local.views > post.views ? { ...post, views: local.views } : post;
             }),
           );
+          setUnreadCount(data.notifications?.notices || 0);
+          setAlerts(data.notifications?.items || []);
+          setHomeFeed({
+            resources: data.resources || [],
+            notices: data.notices || [],
+            calendar: data.calendar || [],
+          });
         }
       } catch {
-        /* keep the three seeded discussions if the database is unreachable */
-      }
-      try {
-        const notes = await api.notifications();
-        if (!cancel) {
-          setUnreadCount(notes.notices || 0);
-          setAlerts(notes.items || []);
-        }
-      } catch {
-        if (!cancel) setUnreadCount(0);
+        setToken(null);
       }
       if (!cancel) setAuthReady(true);
       if (loadConsent() && typeof Notification !== "undefined" && Notification.permission === "granted") enablePush().catch(() => {});
@@ -236,6 +228,7 @@ export function AppCompositor({ children }) {
       joinedTrainings,
       unreadCount,
       alerts,
+      homeFeed,
       forumCategory,
       setForumCategory,
       consent,
@@ -362,7 +355,7 @@ export function AppCompositor({ children }) {
         setJoinedTrainings((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
       },
     }),
-    [profile, user, signedIn, authReady, editing, menuOpen, cursor, selected, view, kind, openEventId, topics, documents, joinedEvents, joinedTrainings, unreadCount, alerts, forumCategory, consent, cookiesOpen, markTopicView, refreshAlerts, seeFeed],
+    [profile, user, signedIn, authReady, editing, menuOpen, cursor, selected, view, kind, openEventId, topics, documents, joinedEvents, joinedTrainings, unreadCount, alerts, homeFeed, forumCategory, consent, cookiesOpen, markTopicView, refreshAlerts, seeFeed],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

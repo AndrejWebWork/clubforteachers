@@ -278,40 +278,45 @@ async function bumpDownload(pool, kind, itemId, actor, recordHit, foldGuest = ""
   return downloads;
 }
 
+export async function listResources(pool) {
+  const [counts, hidden, uploaded] = await Promise.all([
+    pool.query("SELECT item_id, downloads FROM download_counts WHERE kind = 'resource'"),
+    pool.query("SELECT item_id FROM hidden_items WHERE kind = 'resource'"),
+    pool.query("SELECT * FROM library_items WHERE kind = 'resource' ORDER BY created_at DESC"),
+  ]);
+  const tally = new Map(counts.rows.map((row) => [row.item_id, row.downloads]));
+  const hiddenIds = new Set(hidden.rows.map((row) => row.item_id));
+  return [
+    ...staticResources.map((item) => ({
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      kind: item.kind,
+      source: item.source,
+      type: item.type,
+      author: item.author,
+      detail: item.detail,
+      date: item.date,
+      fileUrl: "",
+      downloads: tally.get(item.id) || 0,
+    })),
+    ...uploaded.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      type: row.type,
+      author: row.author,
+      detail: row.detail,
+      date: "денес",
+      fileUrl: row.file_url,
+      downloads: row.downloads,
+    })),
+  ].filter((item) => !hiddenIds.has(item.id)).sort((a, b) => b.downloads - a.downloads || a.title.localeCompare(b.title, "mk"));
+}
+
 export async function handleLearning({ pool, method, url, req, body, requireUser, requireAdmin, text, uploadDir, root, actorFrom, recordHit }) {
   if (method === "GET" && url === "/api/resources") {
-    const counts = await pool.query("SELECT item_id, downloads FROM download_counts WHERE kind = 'resource'");
-    const tally = new Map(counts.rows.map((row) => [row.item_id, row.downloads]));
-    const hidden = await pool.query("SELECT item_id FROM hidden_items WHERE kind = 'resource'");
-    const hiddenIds = new Set(hidden.rows.map((row) => row.item_id));
-    const uploaded = await pool.query("SELECT * FROM library_items WHERE kind = 'resource' ORDER BY created_at DESC");
-    const items = [
-      ...staticResources.map((item) => ({
-        id: item.id,
-        title: item.title,
-        category: item.category,
-        kind: item.kind,
-        source: item.source,
-        type: item.type,
-        author: item.author,
-        detail: item.detail,
-        date: item.date,
-        fileUrl: "",
-        downloads: tally.get(item.id) || 0,
-      })),
-      ...uploaded.rows.map((row) => ({
-        id: row.id,
-        title: row.title,
-        category: row.category,
-        type: row.type,
-        author: row.author,
-        detail: row.detail,
-        date: "денес",
-        fileUrl: row.file_url,
-        downloads: row.downloads,
-      })),
-    ].filter((item) => !hiddenIds.has(item.id)).sort((a, b) => b.downloads - a.downloads || a.title.localeCompare(b.title, "mk"));
-    return { status: 200, body: { resources: items } };
+    return { status: 200, body: { resources: await listResources(pool) } };
   }
 
   if (method === "POST" && url === "/api/resources") {

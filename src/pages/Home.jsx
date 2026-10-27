@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Calendar, Eye, FileText, FolderOpen, Link2, Megaphone, MessageCircle, Newspaper, Presentation, Wrench } from "lucide-react";
-import { api } from "../api";
 import { MONTHS, calendarToday, entryStamp, monthGrid } from "../calendar";
 import { images } from "../data";
 import { useApp } from "../compositor/AppCompositor";
@@ -45,16 +43,11 @@ function resourceLabel(item) {
 }
 
 export default function Home() {
-  const { topics, signedIn, profile } = useApp();
+  const { topics, signedIn, profile, homeFeed } = useApp();
   const givenName = signedIn ? profile.name.trim().split(/\s+/)[0] : "";
-  const [library, setLibrary] = useState([]);
-  const [notices, setNotices] = useState([]);
-  const [calendarItems, setCalendarItems] = useState([]);
-  useEffect(() => {
-    api.resources().then((data) => setLibrary(data.resources || [])).catch(() => setLibrary([]));
-    api.notices().then((data) => setNotices(data.notices || [])).catch(() => setNotices([]));
-    api.calendar().then((data) => setCalendarItems(data.items || [])).catch(() => setCalendarItems([]));
-  }, []);
+  const library = homeFeed.resources;
+  const notices = homeFeed.notices;
+  const calendarItems = homeFeed.calendar;
   const today = calendarToday();
   const homeMonth = monthGrid(today.getFullYear(), today.getMonth());
   const todayStamp = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();

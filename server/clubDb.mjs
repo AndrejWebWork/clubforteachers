@@ -205,11 +205,19 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
+const SCHEMA_VERSION = "2026-10-27-boot";
+
 async function setup() {
   try {
     if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
   } catch {
     /* Vercel keeps the project folder read-only. */
+  }
+  try {
+    const found = await pool.query("SELECT value FROM app_meta WHERE key = 'schema'");
+    if (found.rows[0]?.value === SCHEMA_VERSION) return;
+  } catch {
+    /* The marker table is created at the end of the first full setup. */
   }
   const { ensureFeeds } = await import("./feeds.mjs");
   const { ensureEvents } = await import("./events.mjs");
@@ -286,6 +294,11 @@ async function setup() {
      ), replies = (
        SELECT COUNT(*)::int FROM post_messages m WHERE m.post_id = posts.id
      )`,
+  );
+  await pool.query("CREATE TABLE IF NOT EXISTS app_meta (key text PRIMARY KEY, value text NOT NULL)");
+  await pool.query(
+    "INSERT INTO app_meta (key, value) VALUES ('schema', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+    [SCHEMA_VERSION],
   );
 }
 
@@ -411,6 +424,32 @@ function readBody(req, limit = 6_000_000) {
 
 async function handle(method, url, req) {
   await ensureReady();
+
+  if (method === "GET" && url === "/api/boot") {
+    const user = await userFrom(req);
+    if (!user) return { status: 200, body: { user: null } };
+    const { notificationBundle, listNotices, listCalendar } = await import("./feeds.mjs");
+    const { listResources } = await import("./learning.mjs");
+    const [posts, notices, calendar, resources, forum] = await Promise.all([
+      pool.query(`${postSelect} GROUP BY p.id ORDER BY p.created_at DESC`),
+      listNotices(pool),
+      listCalendar(pool),
+      listResources(pool),
+      unreadReplies(user),
+    ]);
+    const notifications = await notificationBundle(pool, `user:${user.id}`, forum);
+    return {
+      status: 200,
+      body: {
+        user: publicUser(user),
+        posts: posts.rows.map(mapPost),
+        notifications,
+        notices,
+        calendar,
+        resources,
+      },
+    };
+  }
 
   const mediaFile = url.match(/^\/api\/media\/file\/([^/]+)$/);
   if ((method === "GET" || method === "HEAD") && mediaFile) {
