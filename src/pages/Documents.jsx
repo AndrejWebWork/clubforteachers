@@ -28,8 +28,8 @@ async function saveFile(item, onCount) {
 }
 
 export default function Documents({ embedded = false }) {
-  const { isAdmin } = useApp();
-  const [documents, setDocuments] = useState([]);
+  const { isAdmin, catalog } = useApp();
+  const [documents, setDocuments] = useState(catalog.documents);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState({ title: "", type: "PDF", folder: folders[0], body: "" });

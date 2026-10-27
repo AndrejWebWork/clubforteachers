@@ -5,8 +5,8 @@ import { useApp } from "../compositor/AppCompositor";
 import { Button, PageHeader } from "../components/ui";
 
 export default function Events() {
-  const { joinedEvents, toggleEvent } = useApp();
-  const [events, setEvents] = useState([]);
+  const { joinedEvents, toggleEvent, catalog } = useApp();
+  const [events, setEvents] = useState(catalog.events);
   const [kind, setKind] = useState("Сите");
   const [openPast, setOpenPast] = useState(null);
   const [error, setError] = useState("");

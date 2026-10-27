@@ -4,20 +4,6 @@ import gsap from "gsap";
 
 gsap.config({ nullTargetWarn: false });
 
-const RISE = [
-  ".brand-header",
-  ".hero-compact",
-  ".news-mini",
-  ".training-card",
-  ".resource-card",
-  ".featured-document",
-  ".document-feature",
-  ".topic-row",
-  "article.panel",
-  ".calendar-shell",
-  ".auth-card",
-];
-
 function reduced() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -28,18 +14,6 @@ export default function MotionRoot() {
   useEffect(() => {
     if (reduced()) return undefined;
     const ctx = gsap.context(() => {
-      const nodes = gsap.utils.toArray(RISE.map((item) => `main ${item}`).join(","));
-      if (nodes.length) {
-        gsap.from(nodes, {
-          y: 18,
-          autoAlpha: 0,
-          duration: 0.42,
-          stagger: { each: 0.04, from: "start" },
-          ease: "power2.out",
-          clearProps: "transform,opacity,visibility",
-          overwrite: "auto",
-        });
-      }
       const arrows = document.querySelector(".auth-arrows");
       const dots = gsap.utils.toArray(".auth-dots i");
       if (arrows) gsap.to(arrows, { x: 14, duration: 1.7, yoyo: true, repeat: -1, ease: "sine.inOut" });

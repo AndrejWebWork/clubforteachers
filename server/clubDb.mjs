@@ -429,13 +429,19 @@ async function handle(method, url, req) {
     const user = await userFrom(req);
     if (!user) return { status: 200, body: { user: null } };
     const { notificationBundle, listNotices, listCalendar } = await import("./feeds.mjs");
-    const { listResources } = await import("./learning.mjs");
-    const [posts, notices, calendar, resources, forum] = await Promise.all([
+    const { listResources, listDocuments, listTrainings, listMasterclasses } = await import("./learning.mjs");
+    const { listEvents } = await import("./events.mjs");
+    const [posts, notices, calendar, resources, documents, trainings, events, masters, forum, members] = await Promise.all([
       pool.query(`${postSelect} GROUP BY p.id ORDER BY p.created_at DESC`),
       listNotices(pool),
       listCalendar(pool),
       listResources(pool),
+      listDocuments(pool),
+      listTrainings(pool, user.id),
+      listEvents(pool),
+      listMasterclasses(pool, user),
       unreadReplies(user),
+      pool.query("SELECT name FROM users ORDER BY name"),
     ]);
     const notifications = await notificationBundle(pool, `user:${user.id}`, forum);
     return {
@@ -447,6 +453,12 @@ async function handle(method, url, req) {
         notices,
         calendar,
         resources,
+        documents,
+        trainings,
+        events,
+        masterclasses: masters.masterclasses,
+        unlocked: masters.unlocked,
+        members: members.rows.map((row) => row.name).filter(Boolean),
       },
     };
   }

@@ -14,9 +14,9 @@ function sameDate(left, right) {
 }
 
 export default function CalendarPage() {
-  const { seeFeed } = useApp();
+  const { seeFeed, catalog } = useApp();
   const today = calendarToday();
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(catalog.calendar);
   const [cursor, setCursor] = useState(today);
   const [view, setView] = useState("Месец");
   const [kind, setKind] = useState("Сите");

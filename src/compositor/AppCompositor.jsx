@@ -136,7 +136,17 @@ export function AppCompositor({ children }) {
   const [forumCategory, setForumCategory] = useState("Сите");
   const [consent, setConsent] = useState(loadConsent);
   const [cookiesOpen, setCookiesOpen] = useState(false);
-  const [homeFeed, setHomeFeed] = useState({ resources: [], notices: [], calendar: [] });
+  const [catalog, setCatalog] = useState({
+    resources: [],
+    notices: [],
+    calendar: [],
+    documents: [],
+    trainings: [],
+    events: [],
+    masterclasses: [],
+    unlocked: false,
+    members: [],
+  });
 
   useEffect(() => {
     if (signedIn) localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -159,10 +169,16 @@ export function AppCompositor({ children }) {
           );
           setUnreadCount(data.notifications?.notices || 0);
           setAlerts(data.notifications?.items || []);
-          setHomeFeed({
+          setCatalog({
             resources: data.resources || [],
             notices: data.notices || [],
             calendar: data.calendar || [],
+            documents: data.documents || [],
+            trainings: data.trainings || [],
+            events: data.events || [],
+            masterclasses: data.masterclasses || [],
+            unlocked: Boolean(data.unlocked),
+            members: data.members || [],
           });
         }
       } catch {
@@ -228,7 +244,7 @@ export function AppCompositor({ children }) {
       joinedTrainings,
       unreadCount,
       alerts,
-      homeFeed,
+      catalog,
       forumCategory,
       setForumCategory,
       consent,
@@ -355,7 +371,7 @@ export function AppCompositor({ children }) {
         setJoinedTrainings((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
       },
     }),
-    [profile, user, signedIn, authReady, editing, menuOpen, cursor, selected, view, kind, openEventId, topics, documents, joinedEvents, joinedTrainings, unreadCount, alerts, homeFeed, forumCategory, consent, cookiesOpen, markTopicView, refreshAlerts, seeFeed],
+    [profile, user, signedIn, authReady, editing, menuOpen, cursor, selected, view, kind, openEventId, topics, documents, joinedEvents, joinedTrainings, unreadCount, alerts, catalog, forumCategory, consent, cookiesOpen, markTopicView, refreshAlerts, seeFeed],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

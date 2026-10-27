@@ -314,6 +314,71 @@ export async function listResources(pool) {
   ].filter((item) => !hiddenIds.has(item.id)).sort((a, b) => b.downloads - a.downloads || a.title.localeCompare(b.title, "mk"));
 }
 
+export async function listDocuments(pool) {
+  const { rows } = await pool.query("SELECT * FROM library_items WHERE kind = 'document' ORDER BY created_at DESC");
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    type: row.type,
+    folder: row.folder,
+    size: row.size_label,
+    date: new Date(row.created_at).toLocaleDateString("mk-MK"),
+    featured: row.featured,
+    body: row.detail,
+    fileUrl: row.file_url,
+    downloads: row.downloads,
+  }));
+}
+
+export async function listTrainings(pool, userId) {
+  const { rows } = await pool.query(
+    `SELECT id, title, category, description, duration, format, level, status, image, video_url, module_no,
+      (SELECT COUNT(*)::int FROM training_modules m WHERE m.training_id = trainings.id) AS module_count,
+      CASE WHEN $1::uuid IS NULL THEN false ELSE EXISTS (
+        SELECT 1 FROM certificates c WHERE c.training_id = trainings.id AND c.user_id = $1::uuid
+      ) END AS certified
+     FROM trainings ORDER BY created_at DESC`,
+    [userId],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    description: row.description,
+    duration: row.duration,
+    format: row.format,
+    level: row.level,
+    status: row.status,
+    image: row.image,
+    videoUrl: row.video_url,
+    module: moduleNumber(row.module_no),
+    moduleCount: Number(row.module_count) || 2,
+    certified: Boolean(row.certified),
+  }));
+}
+
+export async function listMasterclasses(pool, user) {
+  const unlocked = user.role === "admin" || user.membership === "polno";
+  const { rows } = await pool.query(
+    `SELECT m.*, EXISTS (
+       SELECT 1 FROM masterclass_evaluations e WHERE e.masterclass_id = m.id AND e.user_id = $1
+     ) AS evaluated
+     FROM masterclasses m ORDER BY m.starts_at`,
+    [user.id],
+  );
+  return {
+    unlocked,
+    masterclasses: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      startsAt: row.starts_at,
+      minutes: row.minutes,
+      locked: !unlocked,
+      ...(unlocked ? { description: row.description, joinInfo: row.join_info, evaluated: Boolean(row.evaluated) } : {}),
+    })),
+  };
+}
+
 export async function handleLearning({ pool, method, url, req, body, requireUser, requireAdmin, text, uploadDir, root, actorFrom, recordHit }) {
   if (method === "GET" && url === "/api/resources") {
     return { status: 200, body: { resources: await listResources(pool) } };
@@ -364,24 +429,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   }
 
   if (method === "GET" && url === "/api/documents") {
-    const { rows } = await pool.query("SELECT * FROM library_items WHERE kind = 'document' ORDER BY created_at DESC");
-    return {
-      status: 200,
-      body: {
-        documents: rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          type: row.type,
-          folder: row.folder,
-          size: row.size_label,
-          date: new Date(row.created_at).toLocaleDateString("mk-MK"),
-          featured: row.featured,
-          body: row.detail,
-          fileUrl: row.file_url,
-          downloads: row.downloads,
-        })),
-      },
-    };
+    return { status: 200, body: { documents: await listDocuments(pool) } };
   }
 
   if (method === "POST" && url === "/api/documents") {
@@ -419,35 +467,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   if (method === "GET" && url === "/api/trainings") {
     const auth = await requireUser(req);
     const userId = auth.error ? null : auth.user.id;
-    const { rows } = await pool.query(
-      `SELECT id, title, category, description, duration, format, level, status, image, video_url, module_no,
-        (SELECT COUNT(*)::int FROM training_modules m WHERE m.training_id = trainings.id) AS module_count,
-        CASE WHEN $1::uuid IS NULL THEN false ELSE EXISTS (
-          SELECT 1 FROM certificates c WHERE c.training_id = trainings.id AND c.user_id = $1::uuid
-        ) END AS certified
-       FROM trainings ORDER BY created_at DESC`,
-      [userId],
-    );
-    return {
-      status: 200,
-      body: {
-        trainings: rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          category: row.category,
-          description: row.description,
-          duration: row.duration,
-          format: row.format,
-          level: row.level,
-          status: row.status,
-          image: row.image,
-          videoUrl: row.video_url,
-          module: moduleNumber(row.module_no),
-          moduleCount: Number(row.module_count) || 2,
-          certified: Boolean(row.certified),
-        })),
-      },
-    };
+    return { status: 200, body: { trainings: await listTrainings(pool, userId) } };
   }
 
   if (method === "POST" && url === "/api/trainings") {
@@ -751,28 +771,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   if (method === "GET" && url === "/api/masterclasses") {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
-    const unlocked = auth.user.role === "admin" || auth.user.membership === "polno";
-    const { rows } = await pool.query(
-      `SELECT m.*, EXISTS (
-         SELECT 1 FROM masterclass_evaluations e WHERE e.masterclass_id = m.id AND e.user_id = $1
-       ) AS evaluated
-       FROM masterclasses m ORDER BY m.starts_at`,
-      [auth.user.id],
-    );
-    return {
-      status: 200,
-      body: {
-        unlocked,
-        masterclasses: rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          startsAt: row.starts_at,
-          minutes: row.minutes,
-          locked: !unlocked,
-          ...(unlocked ? { description: row.description, joinInfo: row.join_info, evaluated: Boolean(row.evaluated) } : {}),
-        })),
-      },
-    };
+    return { status: 200, body: await listMasterclasses(pool, auth.user) };
   }
 
   if (method === "POST" && url === "/api/masterclasses") {

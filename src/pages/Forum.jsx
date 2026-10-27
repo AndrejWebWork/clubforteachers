@@ -64,11 +64,11 @@ function MentionBox({ value, onChange, people, placeholder, rows = 4 }) {
 const categories = ["Методика и пракса", "Идеи од училишта", "Прашања", "Добра практика", "Технологија", "Професионален развој"];
 
 export function Forum() {
-  const { topics, addTopic, deleteTopic, forumCategory, setForumCategory, signedIn, isAdmin } = useApp();
+  const { topics, addTopic, deleteTopic, forumCategory, setForumCategory, signedIn, isAdmin, catalog } = useApp();
   const navigate = useNavigate();
   const [writing, setWriting] = useState(false);
   const [error, setError] = useState("");
-  const [people, setPeople] = useState([]);
+  const [people, setPeople] = useState(catalog.members);
   const [draft, setDraft] = useState({ title: "", category: categories[0], body: "" });
   useEffect(() => {
     if (!signedIn) return;
@@ -178,11 +178,11 @@ export function Forum() {
 
 export function Topic() {
   const { topicId } = useParams();
-  const { topics, addReply, deleteTopic, isAdmin, signedIn, authReady, markTopicView } = useApp();
+  const { topics, addReply, deleteTopic, isAdmin, signedIn, authReady, markTopicView, catalog } = useApp();
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
-  const [people, setPeople] = useState([]);
+  const [people, setPeople] = useState(catalog.members);
   useEffect(() => {
     if (!signedIn) return;
     api.members().then((data) => setPeople(data.members || [])).catch(() => setPeople([]));

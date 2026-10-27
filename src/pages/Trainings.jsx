@@ -27,10 +27,10 @@ function factLine(item) {
 }
 
 export default function Trainings() {
-  const { signedIn, isAdmin, profile } = useApp();
-  const [trainings, setTrainings] = useState([]);
-  const [masterclasses, setMasterclasses] = useState([]);
-  const [unlocked, setUnlocked] = useState(false);
+  const { signedIn, isAdmin, profile, catalog } = useApp();
+  const [trainings, setTrainings] = useState(catalog.trainings);
+  const [masterclasses, setMasterclasses] = useState(catalog.masterclasses);
+  const [unlocked, setUnlocked] = useState(catalog.unlocked);
   const [error, setError] = useState("");
   const [category, setCategory] = useState("Сите");
   const [query, setQuery] = useState("");

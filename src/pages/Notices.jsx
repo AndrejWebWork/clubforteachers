@@ -6,9 +6,9 @@ import { PageHeader, Signal, useAction } from "../components/ui";
 
 export default function Notices() {
   const { open } = useAction();
-  const { seeFeed } = useApp();
+  const { seeFeed, catalog } = useApp();
   const [category, setCategory] = useState("Сите");
-  const [notices, setNotices] = useState([]);
+  const [notices, setNotices] = useState(catalog.notices);
   useEffect(() => {
     api.notices().then((data) => setNotices(data.notices || [])).catch(() => setNotices([]));
     seeFeed("notice").catch(() => {});

@@ -43,11 +43,11 @@ function resourceLabel(item) {
 }
 
 export default function Home() {
-  const { topics, signedIn, profile, homeFeed } = useApp();
+  const { topics, signedIn, profile, catalog } = useApp();
   const givenName = signedIn ? profile.name.trim().split(/\s+/)[0] : "";
-  const library = homeFeed.resources;
-  const notices = homeFeed.notices;
-  const calendarItems = homeFeed.calendar;
+  const library = catalog.resources;
+  const notices = catalog.notices;
+  const calendarItems = catalog.calendar;
   const today = calendarToday();
   const homeMonth = monthGrid(today.getFullYear(), today.getMonth());
   const todayStamp = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();

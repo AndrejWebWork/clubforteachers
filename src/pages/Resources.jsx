@@ -22,8 +22,8 @@ function KindIcon({ kind }) {
 }
 
 export function Resources() {
-  const { signedIn } = useApp();
-  const [items, setItems] = useState([]);
+  const { signedIn, catalog } = useApp();
+  const [items, setItems] = useState(catalog.resources);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [source, setSource] = useState("Сите");
@@ -149,8 +149,8 @@ export function Resources() {
 
 export function ResourceDetail() {
   const { resourceId } = useParams();
-  const { isAdmin } = useApp();
-  const [item, setItem] = useState(null);
+  const { isAdmin, catalog } = useApp();
+  const [item, setItem] = useState(() => catalog.resources.find((resource) => resource.id === resourceId) || null);
   const [missing, setMissing] = useState(false);
   const [removed, setRemoved] = useState("");
 
