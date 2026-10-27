@@ -1532,13 +1532,13 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   font-weight: 900;
 }
 .lead-mark {
-  margin: 0.4rem 0.4rem 0;
-  padding: 0.55rem 0.7rem;
+  display: block;
+  margin: 0.35rem 0.15rem 0;
+  padding: 0.45rem 0.55rem 0.35rem;
   border-radius: 0.45rem;
-  background: color-mix(in oklab, white 12%, transparent);
+  background: #fff;
 }
-.lead-mark small { display: block; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
-.lead-mark b { font-size: 1.35rem; letter-spacing: 0.14em; }
+.lead-mark img { display: block; width: 100%; height: auto; }
 .module-steps {
   display: flex;
   flex-wrap: wrap;

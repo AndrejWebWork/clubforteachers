@@ -166,10 +166,9 @@ export default function Layout({ children }) {
             <Mail className="h-5 w-5 shrink-0" />
             Контактирај нè
           </button>
-          <div className="lead-mark" aria-label="LEAD">
-            <small>поддржано од</small>
-            <b>LEAD</b>
-          </div>
+          <a className="lead-mark" href="https://lead.org.mk/" target="_blank" rel="noreferrer">
+            <img src="/lead-logo.png" alt="LEAD" />
+          </a>
         </div>
       </aside>
       <div className="flex min-h-screen min-w-0 flex-col">
