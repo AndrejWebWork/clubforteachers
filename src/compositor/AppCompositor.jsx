@@ -197,12 +197,12 @@ export function AppCompositor({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!authReady) return undefined;
+    if (!authReady || !signedIn) return undefined;
     const timer = setInterval(() => {
       refreshAlerts().catch(() => {});
     }, 30000);
     return () => clearInterval(timer);
-  }, [authReady, refreshAlerts]);
+  }, [authReady, signedIn, refreshAlerts]);
 
   const value = useMemo(
     () => ({

@@ -512,8 +512,7 @@ async function handle(method, url, req) {
 
   if (method === "GET" && url === "/api/me") {
     const user = await userFrom(req);
-    if (!user) return { status: 401, body: { error: "Нема активна најава." } };
-    return { status: 200, body: { user: publicUser(user) } };
+    return { status: 200, body: { user: user ? publicUser(user) : null } };
   }
 
   if (method === "GET" && url === "/api/videos") {

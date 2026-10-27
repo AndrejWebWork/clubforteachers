@@ -2,21 +2,21 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import gsap from "gsap";
 
+gsap.config({ nullTargetWarn: false });
+
 const RISE = [
   ".brand-header",
   ".hero-compact",
   ".news-mini",
-  ".pin-note",
   ".training-card",
   ".resource-card",
   ".featured-document",
   ".document-feature",
   ".topic-row",
-  ".forum-start",
   "article.panel",
   ".calendar-shell",
   ".auth-card",
-].join(",");
+];
 
 function reduced() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -28,7 +28,7 @@ export default function MotionRoot() {
   useEffect(() => {
     if (reduced()) return undefined;
     const ctx = gsap.context(() => {
-      const nodes = gsap.utils.toArray(`main ${RISE.split(",").join(", main ")}`);
+      const nodes = gsap.utils.toArray(RISE.map((item) => `main ${item}`).join(","));
       if (nodes.length) {
         gsap.from(nodes, {
           y: 18,
@@ -40,23 +40,41 @@ export default function MotionRoot() {
           overwrite: "auto",
         });
       }
-      if (document.querySelector(".notice-wall")) {
-        gsap.from(".pin-note", {
-          y: -28,
-          rotation: -2,
-          duration: 0.55,
-          stagger: 0.06,
-          ease: "back.out(1.6)",
-          clearProps: "transform",
-          overwrite: "auto",
-        });
-      }
-      if (document.querySelector(".auth-arrows")) {
-        gsap.to(".auth-arrows", { x: 14, duration: 1.7, yoyo: true, repeat: -1, ease: "sine.inOut" });
-        gsap.from(".auth-dots i", { scale: 0, stagger: 0.06, duration: 0.35, ease: "back.out(2)", clearProps: "transform" });
-      }
+      const arrows = document.querySelector(".auth-arrows");
+      const dots = gsap.utils.toArray(".auth-dots i");
+      if (arrows) gsap.to(arrows, { x: 14, duration: 1.7, yoyo: true, repeat: -1, ease: "sine.inOut" });
+      if (dots.length) gsap.from(dots, { scale: 0, stagger: 0.06, duration: 0.35, ease: "back.out(2)", clearProps: "transform" });
     }, document);
-    return () => ctx.revert();
+
+    let attempts = 0;
+    let timer = 0;
+    const animatePins = () => {
+      const pins = gsap.utils.toArray(".notice-wall .pin-note");
+      if (pins.length) {
+        ctx.add(() => {
+          gsap.from(pins, {
+            y: -28,
+            rotation: -2,
+            duration: 0.55,
+            stagger: 0.06,
+            ease: "back.out(1.6)",
+            clearProps: "transform",
+            overwrite: "auto",
+          });
+        });
+        return;
+      }
+      if (document.querySelector(".notice-wall") && attempts < 8) {
+        attempts += 1;
+        timer = window.setTimeout(animatePins, 200);
+      }
+    };
+    animatePins();
+
+    return () => {
+      window.clearTimeout(timer);
+      ctx.revert();
+    };
   }, [pathname]);
 
   useEffect(() => {
