@@ -1142,12 +1142,12 @@ button.cal-item:hover {
 .auth-card {
   position: relative;
   z-index: 1;
-  width: min(100%, 28rem);
+  width: min(100%, 36rem);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
   box-shadow: var(--shadow-panel);
-  padding: 1.25rem;
+  padding: 1.75rem 1.9rem;
 }
 .auth-back {
   display: inline-flex;
@@ -1161,8 +1161,8 @@ button.cal-item:hover {
 .auth-brand span {
   display: grid;
   place-items: center;
-  width: 3rem;
-  height: 3rem;
+  width: 3.4rem;
+  height: 3.4rem;
   border-radius: 0.35rem;
   background: var(--brand-deep);
   color: var(--primary-foreground);
@@ -1186,14 +1186,18 @@ button.cal-item:hover {
 }
 .auth-switch a {
   border-radius: 0.35rem;
-  padding: 0.55rem 0.4rem;
+  padding: 0.75rem 0.5rem;
+  font-size: 1rem;
   color: var(--brand-deep);
   font-weight: 900;
   text-align: center;
 }
 .auth-switch a.active { background: var(--brand-deep); color: var(--primary-foreground); }
-.auth-card h1 { margin: 0; color: var(--brand-deep); font-size: 1.75rem; font-weight: 900; }
-.auth-lead { margin: 0.45rem 0 1rem; color: var(--muted-foreground); font-size: 0.92rem; line-height: 1.5; }
+.auth-card h1 { margin: 0; color: var(--brand-deep); font-size: 2.15rem; font-weight: 900; }
+.auth-lead { margin: 0.55rem 0 1.15rem; color: var(--muted-foreground); font-size: 1.05rem; line-height: 1.55; }
+.auth-card input { height: 3.15rem; font-size: 1rem; }
+.auth-card label > span { font-size: 1rem; }
+.auth-card .cta-link, .auth-card button { height: auto; min-height: 3rem; padding-inline: 1.15rem; font-size: 1rem; }
 
 img, video { max-width: 100%; }
 main .grid > * { min-width: 0; }
@@ -1640,20 +1644,13 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   text-transform: uppercase;
 }
 .landing-stage h1 {
-  margin: 1rem 0 0;
-  font-size: clamp(2.6rem, 6vw, 5.4rem);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  margin: 0.85rem 0 0;
+  font-size: clamp(2.1rem, 4vw, 3.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
 }
-.landing-stage p { margin: 1rem 0 0; max-width: 34rem; font-size: 1.05rem; line-height: 1.7; color: color-mix(in oklab, white 86%, transparent); }
-.landing-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.6rem; }
-.landing-login {
-  height: auto;
-  min-height: 3.25rem;
-  padding: 0.9rem 1.8rem;
-  font-size: 1.12rem;
-  font-weight: 800;
-}
+.landing-stage p { margin: 0.75rem 0 0; max-width: 34rem; font-size: 0.98rem; line-height: 1.6; color: color-mix(in oklab, white 86%, transparent); }
+.landing-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
 .landing-lower {
   display: grid;
   gap: 1rem;
@@ -1666,7 +1663,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   padding: 1.6rem;
   box-shadow: var(--shadow-panel);
 }
-.landing-card h2 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.3rem); line-height: 1.15; color: var(--brand-deep); }
+.landing-card h2 { margin: 0; font-size: clamp(1.35rem, 2vw, 1.7rem); line-height: 1.2; color: var(--brand-deep); }
 .landing-card p { margin: 0.8rem 0 0; max-width: 40rem; color: var(--muted-foreground); line-height: 1.7; }
 .landing-links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.4rem; }
 .landing-links a, .landing-links button {
@@ -1676,8 +1673,8 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   background-color: var(--brand-pale);
   color: var(--brand-deep);
   border-radius: 999px;
-  padding: 0.8rem 1.2rem;
-  font-size: 1rem;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.9rem;
   font-weight: 800;
 }
 .landing-aside {
@@ -1692,16 +1689,16 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   min-height: 16rem;
 }
 .landing-aside span { color: var(--brand-yellow); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
-.landing-aside strong { display: block; margin-top: 0.6rem; font-size: 1.7rem; line-height: 1.2; }
+.landing-aside strong { display: block; margin-top: 0.6rem; font-size: 1.3rem; line-height: 1.25; }
 .landing-foot { flex-wrap: wrap; color: var(--muted-foreground); font-size: 0.85rem; }
 .landing-foot button {
-  min-height: 3.25rem;
-  padding: 0.85rem 1.6rem;
+  min-height: 2.6rem;
+  padding: 0.55rem 1.1rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background-color: var(--card);
   color: var(--brand-deep);
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 @media (min-width: 900px) {

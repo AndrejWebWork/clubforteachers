@@ -28,7 +28,7 @@ export default function Landing() {
             наставници
           </span>
         </a>
-        <Button asChild className="landing-login">
+        <Button asChild>
           <Link to="/najava">Најави се</Link>
         </Button>
       </header>
@@ -39,7 +39,7 @@ export default function Landing() {
           <h1>Клуб на наставници</h1>
           <p>Платформа за членовите на Клубот. Најави се за да пристапиш до обуките, огласите, ресурсите и форумот.</p>
           <div className="landing-actions">
-            <Button asChild variant="yellow" className="landing-login">
+            <Button asChild variant="yellow">
               <Link to="/najava">Најави се</Link>
             </Button>
             <Button variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10" onClick={() => document.getElementById("za-klubot")?.scrollIntoView({ behavior: "smooth" })}>
@@ -69,7 +69,7 @@ export default function Landing() {
             <span>Членство</span>
             <strong>Влезот е со сметка што ја дава организацијата.</strong>
           </div>
-          <Button asChild variant="yellow" className="landing-login w-fit">
+          <Button asChild variant="yellow" className="w-fit">
             <Link to="/najava">Најави се</Link>
           </Button>
         </aside>
