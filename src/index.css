@@ -860,17 +860,27 @@ button, input, textarea, select { font-family: inherit; }
 .board-row.priority { border-left-color: var(--brand-yellow); background: color-mix(in oklab, var(--brand-yellow) 9%, var(--card)); }
 .board-date {
   background: var(--brand-deep);
-  width: 2.8rem;
+  width: auto;
+  min-width: 3.15rem;
   color: var(--primary-foreground);
   border-radius: 0.35rem;
   flex-shrink: 0;
   place-items: center;
-  padding: 0.3rem 0;
+  padding: 0.38rem 0.5rem 0.34rem;
   line-height: 1;
   display: grid;
+  text-align: center;
 }
-.board-date b { font-size: 1.1rem; }
-.board-date small { color: var(--brand-yellow); font-size: 0.58rem; font-weight: 900; }
+.board-date b { font-size: 1.05rem; }
+.board-date small {
+  color: var(--brand-yellow);
+  max-width: 4.5rem;
+  font-size: 0.46rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.05;
+  white-space: nowrap;
+}
 .cal-dot {
   border-radius: 999px;
   width: 0.5rem;
@@ -1200,7 +1210,6 @@ main .grid > * { min-width: 0; }
 @media (width <= 389px) {
   .auth-card { padding: 1rem; }
   .auth-card h1 { font-size: 1.45rem; }
-  .board-date { width: 2.35rem; }
   .recommend-btn { font-size: 0.75rem; padding: 0.5rem; }
 }
 
