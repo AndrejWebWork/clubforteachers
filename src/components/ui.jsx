@@ -1,4 +1,5 @@
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useRef, useState } from "react";
+import { RichText } from "./RichText";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgePlus, CalendarClock, CircleAlert, CircleCheck, DoorOpen, Flag, Hourglass, Search, Siren, Upload } from "lucide-react";
 
@@ -13,9 +14,9 @@ export function ActionProvider({ children }) {
         <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setDialog(null)}>
           <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-panel" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold">{dialog.title || "Успешно!"}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {dialog.description || "Ова е демонстрациска акција во прототипот."}
-            </p>
+            <div className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+              {typeof dialog.description === "string" ? <RichText text={dialog.description} /> : (dialog.description || "Ова е демонстрациска акција во прототипот.")}
+            </div>
             <button
               className="mt-4 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
               onClick={() => setDialog(null)}

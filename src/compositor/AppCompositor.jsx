@@ -370,6 +370,9 @@ export function AppCompositor({ children }) {
       toggleTraining(id) {
         setJoinedTrainings((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
       },
+      replaceNotices(notices) {
+        setCatalog((current) => ({ ...current, notices }));
+      },
     }),
     [profile, user, signedIn, authReady, editing, menuOpen, cursor, selected, view, kind, openEventId, topics, documents, joinedEvents, joinedTrainings, unreadCount, alerts, catalog, forumCategory, consent, cookiesOpen, markTopicView, refreshAlerts, seeFeed],
   );

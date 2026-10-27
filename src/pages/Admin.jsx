@@ -343,8 +343,8 @@ export default function Admin() {
             <div className="added-list divide-y">
             {videos.map((video) => (
               <div key={video.id} className="py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <b className="text-brand-deep">{video.title}</b>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <b className="min-w-0 flex-1 text-brand-deep">{video.title}</b>
                   <button type="button" className="row-delete" onClick={() => run(() => api.deleteVideo(video.id))}>Избриши</button>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{video.description}</p>
@@ -392,8 +392,8 @@ export default function Admin() {
             {files.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема прилози.</p>}
             <div className="added-list divide-y">
             {files.map((file) => (
-              <div key={file.id} className="flex items-center justify-between gap-3 py-3">
-                <a className="font-bold text-brand-deep" href={file.url} download>{file.name}</a>
+              <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <a className="min-w-0 flex-1 break-all font-bold text-brand-deep" href={file.url} download>{file.name}</a>
                 <button type="button" className="row-delete" onClick={() => run(() => api.deleteAttachment(file.id))}>Избриши</button>
               </div>
             ))}

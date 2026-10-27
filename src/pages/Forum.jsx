@@ -137,7 +137,7 @@ export function Forum() {
       </div>
       <div className="panel divide-y p-0">
         {topics.filter((item) => forumCategory === "Сите" || item.category === forumCategory).map((item) => (
-          <div key={item.id} className="flex items-stretch">
+          <div key={item.id} className="flex min-w-0 flex-col sm:flex-row sm:items-stretch">
           <Link to={`/forum/${item.id}`} className="topic-row group min-w-0 flex-1">
             <Avatar name={item.author} />
             <div className="min-w-0 flex-1">
@@ -157,7 +157,7 @@ export function Forum() {
           {isAdmin && (
             <button
               type="button"
-              className="row-delete m-3 self-center"
+              className="row-delete mx-3 mb-3 self-end sm:my-3 sm:self-center"
               onClick={async () => {
                 try {
                   await deleteTopic(item.id);

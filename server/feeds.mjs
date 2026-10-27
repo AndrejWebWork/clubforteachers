@@ -74,8 +74,15 @@ export async function ensureFeeds(pool) {
       PRIMARY KEY (actor, kind)
     );
   `);
+  let alreadySeeded = false;
+  try {
+    const mark = await pool.query("SELECT value FROM app_meta WHERE key = 'notices_seeded'");
+    alreadySeeded = mark.rows[0]?.value === "1";
+  } catch {
+    alreadySeeded = false;
+  }
   const noticeCount = await pool.query("SELECT COUNT(*)::int AS count FROM board_notices");
-  if (noticeCount.rows[0].count === 0) {
+  if (!alreadySeeded && noticeCount.rows[0].count === 0) {
     for (const [index, item] of notices.entries()) {
       const createdAt = new Date(Date.UTC(2025, 5, 1, 12, 0, 0) - index * 3600000).toISOString();
       await pool.query(
@@ -85,6 +92,8 @@ export async function ensureFeeds(pool) {
       );
     }
   }
+  await pool.query("CREATE TABLE IF NOT EXISTS app_meta (key text PRIMARY KEY, value text NOT NULL)");
+  await pool.query("INSERT INTO app_meta (key, value) VALUES ('notices_seeded', '1') ON CONFLICT (key) DO NOTHING");
   const calendarCount = await pool.query("SELECT COUNT(*)::int AS count FROM calendar_entries");
   if (calendarCount.rows[0].count === 0) {
     for (const [index, item] of calendarItems.entries()) {
@@ -172,6 +181,26 @@ export async function addNotice(pool, id, item) {
   );
   await notify(pool, { column: "notices", title: "Нов оглас", body: item.title, url: "/oglasi" });
   return { notice: { id, ...item, text: item.body, createdAt } };
+}
+
+export async function updateNotice(pool, id, item) {
+  if (!noticeCategories.includes(item.category)) return { error: "Изберете категорија од списокот." };
+  if (!item.title || !item.body) return { error: "Насловот и текстот се задолжителни." };
+  const { rows } = await pool.query(
+    `UPDATE board_notices
+     SET title = $2, category = $3, day = $4, month = $5, status = $6, priority = $7, body = $8
+     WHERE id = $1
+     RETURNING *`,
+    [id, item.title, item.category, item.day || "01", item.month || "ЈУН", item.status || "НОВО", Boolean(item.priority), item.body],
+  );
+  if (!rows[0]) return { error: "Огласот не е пронајден." };
+  return { notice: mapNotice(rows[0]) };
+}
+
+export async function removeNotice(pool, id) {
+  const { rowCount } = await pool.query("DELETE FROM board_notices WHERE id = $1", [id]);
+  if (!rowCount) return { error: "Огласот не е пронајден." };
+  return { ok: true };
 }
 
 export async function addCalendarEntry(pool, id, item) {

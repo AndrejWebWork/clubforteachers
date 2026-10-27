@@ -205,7 +205,7 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
-const SCHEMA_VERSION = "2026-10-27-boot";
+const SCHEMA_VERSION = "2026-10-27-notices";
 
 async function setup() {
   try {
@@ -1029,10 +1029,10 @@ async function handle(method, url, req) {
         title: text(body.title, 140),
         category: text(body.category, 40),
         day: text(body.day, 2),
-        month: text(body.month, 8).toUpperCase(),
+        month: text(body.month, 16).toUpperCase(),
         status: text(body.status, 40) || "НОВО",
         priority: Boolean(body.priority),
-        body: text(body.text, 1000),
+        body: text(body.text, 4000),
       })
       : await feeds.addCalendarEntry(pool, id("cal"), {
         title: text(body.title, 140),
@@ -1046,6 +1046,28 @@ async function handle(method, url, req) {
       });
     if (result.error) return { status: 400, body: { error: result.error } };
     return { status: 201, body: result };
+  }
+
+  const noticeMatch = url.match(/^\/api\/notices\/([^/]+)$/);
+  if (noticeMatch && (method === "PATCH" || method === "DELETE")) {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const noticeId = decodeURIComponent(noticeMatch[1]);
+    if (!/^[\w-]+$/.test(noticeId)) return { status: 400, body: { error: "Огласот не е пронајден." } };
+    const feeds = await import("./feeds.mjs");
+    const result = method === "DELETE"
+      ? await feeds.removeNotice(pool, noticeId)
+      : await feeds.updateNotice(pool, noticeId, {
+        title: text(body.title, 140),
+        category: text(body.category, 40),
+        day: text(body.day, 2),
+        month: text(body.month, 16).toUpperCase(),
+        status: text(body.status, 40) || "НОВО",
+        priority: Boolean(body.priority),
+        body: text(body.text, 4000),
+      });
+    if (result.error) return { status: result.error === "Огласот не е пронајден." ? 404 : 400, body: { error: result.error } };
+    return { status: 200, body: result };
   }
 
   if (method === "POST" && url === "/api/push/subscribe") {

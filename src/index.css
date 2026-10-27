@@ -777,6 +777,10 @@ button, input, textarea, select { font-family: inherit; }
   font-size: 0.66rem;
   font-weight: 900;
   display: inline-flex;
+  max-width: 100%;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .type-chip.lead { background: var(--brand-deep); color: var(--brand-yellow); }
 .type-chip.light { background: color-mix(in oklab, var(--primary-foreground) 18%, transparent); color: var(--primary-foreground); }
@@ -1203,7 +1207,7 @@ main .grid > * { min-width: 0; }
   .month-num { font-size: 0.72rem; }
   .document-feature, .forum-start { padding: 1rem; }
   .resource-card { flex-direction: column; }
-  .topic-row { align-items: flex-start; flex-wrap: wrap; }
+  .topic-row { align-items: flex-start; }
   .board-row { align-items: flex-start; }
   .see-all { white-space: normal; }
 }

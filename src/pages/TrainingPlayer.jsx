@@ -246,7 +246,13 @@ export default function TrainingPlayer() {
 
       <section className="panel mt-5">
         <h2 className="section-heading">Тест</h2>
-        {!quizOpen && !awaitingEval && <p className="text-sm text-muted-foreground">Тестот се појавува откако ќе ги изгледате видеата од модулите.</p>}
+        {!quizOpen && !awaitingEval && (
+          <p className="text-sm text-muted-foreground">
+            {training.modules?.some((item) => item.videoUrl)
+              ? "Тестот се појавува откако ќе ги изгледате видеата од модулите."
+              : "Тестот се појавува откако ќе продолжите од модулите."}
+          </p>
+        )}
         {quizOpen && !awaitingEval && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
         {awaitingEval && (
           <form

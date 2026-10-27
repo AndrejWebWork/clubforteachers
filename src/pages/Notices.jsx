@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { noticeCategories } from "../data";
 import { useApp } from "../compositor/AppCompositor";
+import { RichText } from "../components/RichText";
 import { PageHeader, Signal, useAction } from "../components/ui";
 
 export default function Notices() {
@@ -31,18 +32,18 @@ export default function Notices() {
         {items.map((item) => (
           <article key={item.id || item.title} className={`pin-note ${item.priority ? "priority" : ""}`}>
             <span className="push-pin" aria-hidden="true" />
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <span className="type-chip">{item.category}</span>
-              <span className="pin-date"><small>Рок за пријава</small><b>{item.day}</b> {item.month}</span>
+              <span className="pin-date shrink-0"><small>Рок за пријава</small><b>{item.day}</b> {item.month}</span>
             </div>
             <h3 className="mt-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.text}</p>
+            <p className="mt-1 line-clamp-3 break-words text-xs text-muted-foreground"><RichText text={item.text} /></p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <Signal label={item.status} />
               <button
                 type="button"
                 className="pill"
-                onClick={() => open({ title: item.title, description: `${item.text} Рок: ${item.day} ${item.month}.` })}
+                onClick={() => open({ title: item.title, description: `${item.text}\n\nРок: ${item.day} ${item.month}.` })}
               >
                 Детали
               </button>
