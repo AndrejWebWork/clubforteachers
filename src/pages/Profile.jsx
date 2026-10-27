@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { api } from "../api";
+import { deliverInvite, isGmailAddress } from "../inviteMail";
 import { defaultProfile, useApp } from "../compositor/AppCompositor";
 import { Avatar, Button, PageHeader } from "../components/ui";
 
@@ -44,6 +45,7 @@ export default function Profile() {
   const { profile, signedIn, isAdmin, authReady, editing, startEdit, cancelEdit, saveProfile } = useApp();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteNote, setInviteNote] = useState("");
+  const [prepared, setPrepared] = useState(null);
   const [form, setForm] = useState(profile);
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState(profile.photo || "");
@@ -218,19 +220,27 @@ export default function Profile() {
           </section>
           <section className="panel">
             <h2 className="section-heading">Препорачај го клубот</h2>
-            <p className="mb-3 text-sm text-muted-foreground">На внесената е-пошта се испраќа иста покана за секој наставник.</p>
+            <p className="mb-3 text-sm text-muted-foreground">Иста покана за секој колега. Писмото се пополнува од твојата е-пошта, со линк до Клубот.</p>
             <form
               className="flex flex-col gap-3 sm:flex-row"
               onSubmit={async (event) => {
                 event.preventDefault();
                 setInviteNote("");
+                setPrepared(null);
+                const mailTab = isGmailAddress(profile.email) ? window.open("about:blank", "_blank") : null;
                 try {
-                  const result = await api.invite(inviteEmail);
-                  const mail = result.invitation;
-                  window.location.href = `mailto:${mail.to}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.body)}`;
+                  const data = await api.invite(inviteEmail);
+                  const result = deliverInvite(data.invitation, mailTab);
                   setInviteEmail("");
-                  setInviteNote("Поканата е подготвена и се отвора во вашата е-пошта. Испратете ја оттаму.");
+                  if (result.opened) {
+                    setPrepared(null);
+                    setInviteNote("Се отвори во Gmail. Притисни Испрати таму. Писмото тргнува од твојата Gmail адреса.");
+                  } else {
+                    setPrepared(result.links);
+                    setInviteNote("Нема Gmail на оваа сметка. Избери каде да се отвори писмото и притисни Испрати.");
+                  }
                 } catch (reason) {
+                  if (mailTab && !mailTab.closed) mailTab.close();
                   setInviteNote(reason.message);
                 }
               }}
@@ -248,6 +258,12 @@ export default function Profile() {
               <Button type="button" variant="outline" onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`, "_blank", "noopener,noreferrer")}>Facebook</Button>
             </form>
             {inviteNote && <p className="mt-3 text-sm font-semibold text-brand-deep">{inviteNote}</p>}
+            {prepared && !prepared.opened && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" onClick={() => window.open(prepared.gmail, "_blank", "noopener,noreferrer")}>Отвори во Gmail</Button>
+                <Button type="button" variant="outline" onClick={() => window.open(prepared.outlook, "_blank", "noopener,noreferrer")}>Отвори во Outlook</Button>
+              </div>
+            )}
           </section>
           <section className="panel">
             <h2 className="section-heading">Последна активност</h2>

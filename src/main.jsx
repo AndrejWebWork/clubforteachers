@@ -4,7 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { AppCompositor } from "./compositor/AppCompositor.jsx";
 import { ActionProvider } from "./components/ui.jsx";
+import { preparePush } from "./push";
 import "./index.css";
+
+preparePush();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

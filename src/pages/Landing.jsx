@@ -33,40 +33,51 @@ export default function Landing() {
         </Button>
       </header>
 
-      <main className="landing-main">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Само за членови</p>
-        <h1 className="mt-3 max-w-xl text-4xl font-black leading-tight text-brand-deep sm:text-5xl">Клуб на наставници</h1>
-        <p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground">
-          Платформа за членовите на Клубот. Најави се за да пристапиш до обуките, огласите, ресурсите и форумот.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button asChild>
-            <Link to="/najava">Најави се</Link>
-          </Button>
-          <Button variant="outline" onClick={() => document.getElementById("za-klubot")?.scrollIntoView({ behavior: "smooth" })}>
-            Повеќе информации
-          </Button>
-        </div>
-      </main>
-
-      <section id="za-klubot" className="landing-panel">
-        <h2 className="text-2xl font-black text-brand-deep">Сè уште не си член на Клубот?</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
-          Клубот е заедница за идеи, ресурси, обуки и професионална поддршка. Членството го отвора раководителот. Тука можеш да прочиташ за што служи платформата и да не контактираш.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <a className="footer-link" href="https://lead.org.mk/" target="_blank" rel="noreferrer">Веб-страница на платформата</a>
-          <a className="footer-link" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`} target="_blank" rel="noreferrer">Facebook</a>
-          <a className="footer-link" href={`viber://forward?text=${encodeURIComponent(`Клуб на наставници ${shareLink}`)}`}>Viber</a>
-          <button type="button" className="footer-link" onClick={() => setContactOpen(true)}>
-            <Mail className="mr-1 inline h-4 w-4" /> Контакт
-          </button>
+      <section className="landing-stage">
+        <div className="landing-stage-copy">
+          <p className="landing-kicker">Само за членови</p>
+          <h1>Клуб на наставници</h1>
+          <p>Платформа за членовите на Клубот. Најави се за да пристапиш до обуките, огласите, ресурсите и форумот.</p>
+          <div className="landing-actions">
+            <Button asChild variant="yellow">
+              <Link to="/najava">Најави се</Link>
+            </Button>
+            <Button variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10" onClick={() => document.getElementById("za-klubot")?.scrollIntoView({ behavior: "smooth" })}>
+              Повеќе информации
+            </Button>
+          </div>
         </div>
       </section>
 
+      <section id="za-klubot" className="landing-lower">
+        <div className="landing-card">
+          <h2>Сè уште не си член на Клубот?</h2>
+          <p>
+            Клубот е заедница за идеи, ресурси, обуки и професионална поддршка. Членството го отвора раководителот. Тука можеш да прочиташ за што служи платформата и да не контактираш.
+          </p>
+          <div className="landing-links">
+            <a href="https://lead.org.mk/" target="_blank" rel="noreferrer">Веб-страница на платформата</a>
+            <a href="https://www.facebook.com/lead.mkd/" target="_blank" rel="noreferrer">Facebook</a>
+            <a href={`viber://forward?text=${encodeURIComponent(`Клуб на наставници ${shareLink}`)}`}>Viber</a>
+            <button type="button" onClick={() => setContactOpen(true)}>
+              <Mail className="mr-1 inline h-4 w-4" /> Контакт
+            </button>
+          </div>
+        </div>
+        <aside className="landing-aside">
+          <div>
+            <span>Членство</span>
+            <strong>Влезот е со сметка што ја отвора раководителот.</strong>
+          </div>
+          <Button asChild variant="yellow" className="w-fit">
+            <Link to="/najava">Најави се</Link>
+          </Button>
+        </aside>
+      </section>
+
       <footer className="landing-foot">
-        <span>© 2026 Клуб на наставници</span>
-        <button type="button" onClick={() => setContactOpen(true)}>Контактирај нè</button>
+        <span>© {new Date().getFullYear()} Клуб на наставници</span>
+        <button type="button" className="landing-contact" onClick={() => setContactOpen(true)}>Контактирај нè</button>
       </footer>
 
       {contactOpen && (

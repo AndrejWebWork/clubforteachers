@@ -6,8 +6,8 @@ import { isBlockedUpload } from "./shield.mjs";
 
 const invitationSubject = "Покана за Клубот на наставници";
 
-function invitationText(fromName) {
-  const who = fromName ? `${fromName} ве поканува` : "Ве покануваме";
+function invitationText(fromName, fromEmail) {
+  const who = fromName ? `${fromName} (${fromEmail}) ве поканува` : `${fromEmail} ве поканува`;
   return `Почитувани,
 
 ${who} да се приклучите на Клубот на наставници.
@@ -17,8 +17,10 @@ ${who} да се приклучите на Клубот на наставниц�
 Отворете ја платформата: https://clubforteachers.vercel.app
 Најавете се со сметката што ќе ви ја отвори раководителот на клубот.
 
+Можете да одговорите на ${fromEmail}.
+
 Со почит,
-Клуб на наставници`;
+${fromName || "Клуб на наставници"}`;
 }
 
 function fileId(prefix) {
@@ -748,8 +750,13 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
     const email = text(body.email, 120).toLowerCase();
-    if (!email.includes("@")) return { status: 400, body: { error: "Внесете валидна е-пошта." } };
-    const letter = invitationText(auth.user.name);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { status: 400, body: { error: "Внесете валидна е-пошта." } };
+    const recent = await pool.query(
+      "SELECT COUNT(*)::int AS count FROM invitations WHERE from_name = $1 AND sent_at > NOW() - INTERVAL '1 hour'",
+      [auth.user.name],
+    );
+    if (recent.rows[0].count >= 8) return { status: 429, body: { error: "Премногу покани за кратко време. Обидете се подоцна." } };
+    const letter = invitationText(auth.user.name, auth.user.email);
     await pool.query("INSERT INTO invitations (id, from_name, to_email, body, sent_at) VALUES ($1,$2,$3,$4, NOW())", [
       fileId("inv"),
       auth.user.name,
@@ -763,6 +770,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
           to: email,
           subject: invitationSubject,
           body: letter,
+          from: auth.user.email,
         },
       },
     };

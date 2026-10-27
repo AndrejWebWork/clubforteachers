@@ -1385,6 +1385,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
 .recommend-btn,
 .auth-switch a,
 .cta-link,
+.landing-links a,
 header a[href="/najava"] {
   background-image: linear-gradient(100deg, color-mix(in oklab, var(--brand-yellow) 78%, white), color-mix(in oklab, var(--brand-coral) 42%, transparent));
   background-repeat: no-repeat;
@@ -1396,6 +1397,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
 .recommend-btn:hover,
 .auth-switch a:hover,
 .cta-link:hover,
+.landing-links a:hover,
 header a[href="/najava"]:hover {
   background-size: 100% 100%;
   transform: translateY(-2px);
@@ -1426,7 +1428,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   50% { box-shadow: 0 3px 0 color-mix(in oklab, var(--brand-urgent) 60%, var(--brand-ink)), 0 0 0 7px color-mix(in oklab, var(--brand-yellow) 45%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  button, .pill, .recommend-btn, .see-all, .auth-switch a, .notice-wall::after, .push-pin {
+  button, .pill, .recommend-btn, .see-all, .auth-switch a, .landing-links a, .notice-wall::after, .push-pin {
     animation: none;
     transition: none;
     transform: none;
@@ -1595,27 +1597,110 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(circle at top right, color-mix(in oklab, var(--brand-yellow) 35%, transparent), transparent 28rem),
-    var(--background);
+  background: var(--background);
 }
 .landing-bar, .landing-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
 }
-.landing-main { flex: 1; padding: 4rem 1.5rem 2rem; max-width: 46rem; }
-.landing-panel {
-  margin: 0 1.5rem 1.5rem;
-  padding: 1.5rem;
-  border-radius: var(--radius);
+.landing-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in oklab, var(--background) 92%, white);
+  border-bottom: 1px solid var(--border);
+}
+.landing-stage {
+  min-height: calc(100vh - 5.25rem);
+  margin: 1rem 1rem 0;
+  border-radius: 1.4rem;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 2.5rem 1.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--background) 10%, transparent) 0%, color-mix(in oklab, var(--brand-deep) 78%, black) 100%),
+    url("/images/teachers-hero-Ca-eJz8B.jpg") center 42% / cover no-repeat;
+  box-shadow: var(--shadow-panel);
+}
+.landing-stage-copy { max-width: 40rem; color: white; }
+.landing-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--brand-yellow);
+  color: var(--brand-ink);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.landing-stage h1 {
+  margin: 1rem 0 0;
+  font-size: clamp(2.6rem, 6vw, 5.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+.landing-stage p { margin: 1rem 0 0; max-width: 34rem; font-size: 1.05rem; line-height: 1.7; color: color-mix(in oklab, white 86%, transparent); }
+.landing-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.6rem; }
+.landing-lower {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+.landing-card {
+  border-radius: 1.2rem;
   background: var(--card);
   border: 1px solid var(--border);
+  padding: 1.6rem;
+  box-shadow: var(--shadow-panel);
 }
-.landing-foot { color: var(--muted-foreground); font-size: 0.85rem; }
-.landing-foot button { font-weight: 800; color: var(--brand-deep); }
+.landing-card h2 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.3rem); line-height: 1.15; color: var(--brand-deep); }
+.landing-card p { margin: 0.8rem 0 0; max-width: 40rem; color: var(--muted-foreground); line-height: 1.7; }
+.landing-links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.4rem; }
+.landing-links a, .landing-links button {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background-color: var(--brand-pale);
+  color: var(--brand-deep);
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 800;
+}
+.landing-aside {
+  border-radius: 1.2rem;
+  background: var(--brand-deep);
+  color: white;
+  padding: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 16rem;
+}
+.landing-aside span { color: var(--brand-yellow); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+.landing-aside strong { display: block; margin-top: 0.6rem; font-size: 1.7rem; line-height: 1.2; }
+.landing-foot { flex-wrap: wrap; color: var(--muted-foreground); font-size: 0.85rem; }
+.landing-foot button {
+  min-height: 3.25rem;
+  padding: 0.85rem 1.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--card);
+  color: var(--brand-deep);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+@media (min-width: 900px) {
+  .landing-stage { align-items: center; margin: 1.25rem 1.25rem 0; padding: 4rem; }
+  .landing-lower { grid-template-columns: 1.5fr 0.9fr; padding: 1.25rem; }
+}
 .sr-only {
   position: absolute;
   width: 1px;

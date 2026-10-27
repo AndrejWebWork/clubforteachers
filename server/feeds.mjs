@@ -151,7 +151,11 @@ async function sendPush(pool, rows, payload) {
   const body = JSON.stringify(payload);
   await Promise.all(rows.map(async (row) => {
     try {
-      await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, body);
+      await webpush.sendNotification(
+        { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+        body,
+        { TTL: 12 * 60 * 60, urgency: "high" },
+      );
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {
         await pool.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [row.endpoint]);
@@ -244,6 +248,7 @@ export async function saveSubscription(pool, body, user) {
           body: "Известувањата се вклучени. Новите огласи, термини и одговори ќе стигнуваат и кога страницата е затворена.",
           url: "/oglasi",
         }),
+        { TTL: 12 * 60 * 60, urgency: "high" },
       );
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {

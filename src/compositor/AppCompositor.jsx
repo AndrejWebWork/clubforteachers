@@ -40,6 +40,7 @@ function profileFromUser(user) {
   return {
     ...defaultProfile,
     name: user.name,
+    email: user.email || "",
     role: user.title || defaultProfile.role,
     school: user.school || defaultProfile.school,
     location: user.location || defaultProfile.location,

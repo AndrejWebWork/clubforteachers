@@ -20,7 +20,8 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { enablePush } from "../push";
+import { deliverInvite, isGmailAddress } from "../inviteMail";
+import { enablePush, pushInstallNeeded } from "../push";
 import { nav, notices, resources, trainings, events } from "../data";
 import { pages } from "../site";
 import { useApp } from "../compositor/AppCompositor";
@@ -48,13 +49,20 @@ export default function Layout({ children }) {
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [invited, setInvited] = useState("");
+  const [invited, setInvited] = useState(null);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactSent, setContactSent] = useState(false);
   const initials = profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2);
   const [query, setQuery] = useState("");
-  const [pushState, setPushState] = useState(() => (typeof Notification === "undefined" ? "unsupported" : Notification.permission));
+  const [pushState, setPushState] = useState(() => {
+    if (pushInstallNeeded()) return "install";
+    if (typeof Notification === "undefined") return "unsupported";
+    return Notification.permission;
+  });
+  const [pushNote, setPushNote] = useState("");
   const navigate = useNavigate();
   const shareLink = typeof window === "undefined" ? "https://clubforteachers.vercel.app" : window.location.origin;
 
@@ -258,17 +266,34 @@ export default function Layout({ children }) {
           </div>
         </header>
         <main id="sodrzina" className="mx-auto w-full max-w-[1500px] flex-1 p-4 sm:p-6 lg:p-8">
-          {consent && pushState === "default" && (
+          {consent && (pushState === "default" || pushState === "install" || pushState === "denied" || pushNote) && (
             <div className="push-banner">
-              <p>Известувањата за огласната табла, календарот и форумот се вклучени. Овозможи ја опцијата известувања во прелистувачот за да ги добиваш известувањеата и кога не си на страницата.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  enablePush().then((state) => setPushState(state === "granted" ? "granted" : Notification.permission)).catch(() => {});
-                }}
-              >
-                Дозволи известувања
-              </button>
+              <p>
+                {pushState === "install"
+                  ? "На iPhone и iPad, Safari праќа известувања откако страницата ќе се додаде на почетниот екран: Сподели, па Додај на почетниот екран. Отвори ја од иконата и дозволи ги известувањата."
+                  : pushState === "denied"
+                    ? "Safari ги има одбиено известувањата. Вклучи ги во Safari, кај Поставки за веб-страници, Известувања."
+                    : "Известувањата за огласната табла, календарот и форумот се вклучени. Овозможи ја опцијата известувања во прелистувачот за да ги добиваш известувањеата и кога не си на страницата."}
+              </p>
+              {pushNote && <p>{pushNote}</p>}
+              {pushState === "default" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPushNote("");
+                    enablePush()
+                      .then((state) => {
+                        if (state === "granted") setPushState("granted");
+                        else if (state === "install") setPushState("install");
+                        else if (state === "denied") setPushState("denied");
+                        else setPushNote("Известувањата не се вклучија. Притисни го копчето уште еднаш.");
+                      })
+                      .catch(() => setPushNote("Известувањата не се вклучија. Притисни го копчето уште еднаш."));
+                  }}
+                >
+                  Дозволи известувања
+                </button>
+              )}
             </div>
           )}
           {children}
@@ -289,37 +314,53 @@ export default function Layout({ children }) {
         <CookieConsent />
       </div>
       {inviteOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => { setInviteOpen(false); setInvited(""); }}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => { setInviteOpen(false); setInvited(null); setInviteError(""); }}>
           <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-panel" onClick={(event) => event.stopPropagation()}>
-            {invited ? (
+            {invited?.opened ? (
               <>
-                <h2 className="text-lg font-black text-brand-deep">Поканата е испратена!</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Поканата за {invited} е подготвена и се отвора во вашата е-пошта. Испратете ја оттаму. Ви благодариме што го споделувате Клубот.</p>
-                <Button className="mt-4" onClick={() => { setInviteOpen(false); setInvited(""); }}>Во ред</Button>
+                <h2 className="text-lg font-black text-brand-deep">Се отвори во Gmail</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Писмото за {invited.to} е пополнето во Google. Притисни Испрати таму. Тргнува од твојата Gmail адреса.</p>
+                <Button className="mt-4" onClick={() => { setInviteOpen(false); setInvited(null); }}>Во ред</Button>
+              </>
+            ) : invited ? (
+              <>
+                <h2 className="text-lg font-black text-brand-deep">Отвори ја поканата</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Нема Gmail на оваа сметка. Избери каде да се отвори писмото за {invited.to}. Таму притисни Испрати.</p>
+                <div className="mt-4 grid gap-2">
+                  <Button type="button" onClick={() => window.open(invited.gmail, "_blank", "noopener,noreferrer")}>Отвори во Gmail</Button>
+                  <Button type="button" variant="outline" onClick={() => window.open(invited.outlook, "_blank", "noopener,noreferrer")}>Отвори во Outlook</Button>
+                </div>
+                <Button className="mt-3" variant="outline" onClick={() => { setInviteOpen(false); setInvited(null); }}>Затвори</Button>
               </>
             ) : (
               <form
                 className="space-y-3"
                 onSubmit={async (event) => {
                   event.preventDefault();
+                  setInviteError("");
+                  setInviteBusy(true);
+                  const mailTab = isGmailAddress(profile.email) ? window.open("about:blank", "_blank") : null;
                   try {
                     const data = await api.invite(inviteEmail);
-                    const mail = data.invitation;
-                    if (mail) window.location.href = `mailto:${mail.to}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.body)}`;
-                  } catch {
-                    /* поканата останува видлива и кога праќањето не е достапно */
+                    const result = deliverInvite(data.invitation, mailTab);
+                    setInvited({ ...result.links, opened: result.opened });
+                    setInviteEmail("");
+                  } catch (reason) {
+                    if (mailTab && !mailTab.closed) mailTab.close();
+                    setInviteError(reason.message);
+                  } finally {
+                    setInviteBusy(false);
                   }
-                  setInvited(inviteEmail);
-                  setInviteEmail("");
                 }}
               >
                 <h2 className="flex items-center gap-2 text-lg font-black text-brand-deep"><Heart className="h-5 w-5 text-primary" /> Препорачај го Клубот</h2>
-                <p className="text-sm text-muted-foreground">Познаваш наставник/наставничка на кој/која би му/ѝ бил корисен Клубот?</p>
+                <p className="text-sm text-muted-foreground">Познаваш наставник/наставничка на кој/која би му/ѝ бил корисен Клубот? Писмото се пополнува од твојата е-пошта, со покана и линк до Клубот.</p>
                 <label className="block text-sm font-bold text-brand-deep">
                   Email адреса
                   <input required type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="kolega@uciliste.mk" className="mt-1.5 h-11 w-full rounded-md border bg-card px-3 text-sm font-medium" />
                 </label>
-                <Button type="submit" className="w-full">Испрати покана</Button>
+                {inviteError && <p className="text-sm font-semibold text-brand-urgent">{inviteError}</p>}
+                <Button type="submit" className="w-full" disabled={inviteBusy}>{inviteBusy ? "Се подготвува..." : "Испрати покана"}</Button>
                 <div className="grid gap-2 sm:grid-cols-3">
                   <Button type="button" variant="outline" onClick={async () => { await navigator.clipboard.writeText(shareLink); setCopied(true); }}>
                     {copied ? "Копирано" : "Копирај линк"}
