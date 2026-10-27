@@ -28,7 +28,7 @@ export default function Landing() {
             наставници
           </span>
         </a>
-        <Button asChild>
+        <Button asChild className="landing-login">
           <Link to="/najava">Најави се</Link>
         </Button>
       </header>
@@ -39,7 +39,7 @@ export default function Landing() {
           <h1>Клуб на наставници</h1>
           <p>Платформа за членовите на Клубот. Најави се за да пристапиш до обуките, огласите, ресурсите и форумот.</p>
           <div className="landing-actions">
-            <Button asChild variant="yellow">
+            <Button asChild variant="yellow" className="landing-login">
               <Link to="/najava">Најави се</Link>
             </Button>
             <Button variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10" onClick={() => document.getElementById("za-klubot")?.scrollIntoView({ behavior: "smooth" })}>
@@ -53,7 +53,7 @@ export default function Landing() {
         <div className="landing-card">
           <h2>Сè уште не си член на Клубот?</h2>
           <p>
-            Клубот е заедница за идеи, ресурси, обуки и професионална поддршка. Членството го отвора раководителот. Тука можеш да прочиташ за што служи платформата и да не контактираш.
+            Клубот е заедница за идеи, ресурси, обуки и професионална поддршка. Членството го дава организацијата. Тука можеш да прочиташ за што служи платформата и да не контактираш.
           </p>
           <div className="landing-links">
             <a href="https://lead.org.mk/" target="_blank" rel="noreferrer">Веб-страница на платформата</a>
@@ -67,9 +67,9 @@ export default function Landing() {
         <aside className="landing-aside">
           <div>
             <span>Членство</span>
-            <strong>Влезот е со сметка што ја отвора раководителот.</strong>
+            <strong>Влезот е со сметка што ја дава организацијата.</strong>
           </div>
-          <Button asChild variant="yellow" className="w-fit">
+          <Button asChild variant="yellow" className="landing-login w-fit">
             <Link to="/najava">Најави се</Link>
           </Button>
         </aside>

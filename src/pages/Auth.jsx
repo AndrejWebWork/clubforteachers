@@ -45,7 +45,7 @@ export function SignIn() {
   return (
     <AuthShell mode="in">
       <h1>Најава</h1>
-      <p className="auth-lead">Влезете со е-поштата и лозинката што ви ги дал раководителот. Нова сметка не се отвора одовде.</p>
+      <p className="auth-lead">Влезете со е-поштата и лозинката што ви ги дала организацијата. Нова сметка не се отвора одовде.</p>
       {signedIn ? (
         <div className="space-y-3">
           <p className="text-sm font-semibold text-brand-deep">Веќе сте најавени.</p>

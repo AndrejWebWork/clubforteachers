@@ -21,7 +21,7 @@ export const pages = [
   {
     path: "/najava",
     title: "Најава",
-    description: "Најава за наставници со сметка што ја издава раководителот на клубот.",
+    description: "Најава за наставници со сметка што ја дава организацијата.",
     robots: "noindex, nofollow",
   },
   {

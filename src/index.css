@@ -1614,7 +1614,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   border-bottom: 1px solid var(--border);
 }
 .landing-stage {
-  min-height: calc(100vh - 5.25rem);
+  min-height: 68vh;
   margin: 1rem 1rem 0;
   border-radius: 1.4rem;
   overflow: hidden;
@@ -1647,6 +1647,13 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
 }
 .landing-stage p { margin: 1rem 0 0; max-width: 34rem; font-size: 1.05rem; line-height: 1.7; color: color-mix(in oklab, white 86%, transparent); }
 .landing-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.6rem; }
+.landing-login {
+  height: auto;
+  min-height: 3.25rem;
+  padding: 0.9rem 1.8rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+}
 .landing-lower {
   display: grid;
   gap: 1rem;
