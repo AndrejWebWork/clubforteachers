@@ -7,7 +7,6 @@ export const images = {
 
 export const nav = [
   { label: "Главна табла", to: "/" },
-  { label: "Мој профил", to: "/profil" },
   { label: "Огласна табла", to: "/oglasi" },
   { label: "Обуки", to: "/obuki" },
   { label: "Ресурси", to: "/resursi" },

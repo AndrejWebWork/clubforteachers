@@ -1550,12 +1550,28 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   font-size: 0.72rem;
   font-weight: 900;
 }
+.club-mark {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  margin-right: 0.35rem;
+}
+.club-mark img { display: block; width: 100%; height: auto; }
+.landing-bar .landing-club-mark {
+  flex: none;
+  width: 9rem;
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.45rem;
+  background: var(--brand-deep);
+}
 .lead-mark {
   display: block;
-  margin: 0.35rem 0.15rem 0;
-  padding: 0.45rem 0.55rem 0.35rem;
-  border-radius: 0.45rem;
-  background: #fff;
+  width: 62%;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  border-radius: 0.35rem;
+  background: transparent;
 }
 .lead-mark img { display: block; width: 100%; height: auto; }
 .module-steps {

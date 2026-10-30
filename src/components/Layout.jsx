@@ -17,7 +17,6 @@ import {
   Presentation,
   Search,
   Shield,
-  UserRound,
   X,
 } from "lucide-react";
 import { deliverInvite, isGmailAddress } from "../inviteMail";
@@ -33,7 +32,6 @@ import MotionRoot from "../motion/MotionRoot";
 
 const icons = {
   "/": Home,
-  "/profil": UserRound,
   "/obuki": Presentation,
   "/resursi": FolderOpen,
   "/nastani": CalendarRange,
@@ -113,12 +111,8 @@ export default function Layout({ children }) {
         }`}
       >
         <div className="flex items-center justify-between px-2">
-          <Link to="/" className="flex items-center gap-3 text-sidebar-primary-foreground" aria-label="Клуб на наставници">
-            <img src="/apple-touch-icon.png" alt="" className="h-12 w-12 shrink-0 rounded-md" />
-            <div className="leading-tight">
-              <div className="text-[10px] font-black uppercase">Клуб на</div>
-              <div className="text-sm font-black uppercase">наставници</div>
-            </div>
+          <Link to="/" className="club-mark" aria-label="Клуб на наставници">
+            <img src="/club-logo.png" alt="Клуб на наставници" />
           </Link>
           <Button variant="ghost" size="icon" className="text-sidebar-primary-foreground md:hidden" onClick={() => setOpen(false)}>
             <X />

@@ -20,13 +20,8 @@ export default function Landing() {
   return (
     <div className="landing">
       <header className="landing-bar">
-        <a href="#za-klubot" className="flex items-center gap-3">
-          <img src="/apple-touch-icon.png" alt="" className="h-12 w-12 rounded-md" />
-          <span className="text-sm font-black uppercase leading-tight text-brand-deep">
-            Клуб на
-            <br />
-            наставници
-          </span>
+        <a href="#za-klubot" className="club-mark landing-club-mark" aria-label="Клуб на наставници">
+          <img src="/club-logo.png" alt="Клуб на наставници" />
         </a>
         <Button asChild>
           <Link to="/najava">Најави се</Link>
