@@ -19,6 +19,13 @@ function envValue(name) {
   return line.slice(name.length + 1).trim().replace(/^["']|["']$/g, "");
 }
 
+function noticeMonth(value) {
+  const month = String(value || "").trim().toUpperCase();
+  if (month === "ЈУН") return "ЈУНИ";
+  if (month === "ЈУЛ") return "ЈУЛИ";
+  return month || "ЈУНИ";
+}
+
 function vapid() {
   const publicKey = envValue("VAPID_PUBLIC_KEY");
   const privateKey = envValue("VAPID_PRIVATE_KEY");
@@ -67,6 +74,8 @@ export async function ensureFeeds(pool) {
     );
     ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_year integer NOT NULL DEFAULT 2026;
     ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_month integer NOT NULL DEFAULT 6;
+    UPDATE board_notices SET month = 'ЈУНИ' WHERE upper(month) = 'ЈУН';
+    UPDATE board_notices SET month = 'ЈУЛИ' WHERE upper(month) = 'ЈУЛ';
     CREATE TABLE IF NOT EXISTS feed_seen (
       actor text NOT NULL,
       kind text NOT NULL,
@@ -113,7 +122,7 @@ function mapNotice(row) {
     title: row.title,
     category: row.category,
     day: row.day,
-    month: row.month,
+    month: noticeMonth(row.month),
     status: row.status,
     priority: row.priority,
     text: row.body,
@@ -181,7 +190,7 @@ export async function addNotice(pool, id, item) {
   await pool.query(
     `INSERT INTO board_notices (id, title, category, day, month, status, priority, body, created_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-    [id, item.title, item.category, item.day || "01", item.month || "ЈУН", item.status || "НОВО", Boolean(item.priority), item.body, createdAt],
+    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, createdAt],
   );
   await notify(pool, { column: "notices", title: "Нов оглас", body: item.title, url: "/oglasi" });
   return { notice: { id, ...item, text: item.body, createdAt } };
@@ -195,7 +204,7 @@ export async function updateNotice(pool, id, item) {
      SET title = $2, category = $3, day = $4, month = $5, status = $6, priority = $7, body = $8
      WHERE id = $1
      RETURNING *`,
-    [id, item.title, item.category, item.day || "01", item.month || "ЈУН", item.status || "НОВО", Boolean(item.priority), item.body],
+    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body],
   );
   if (!rows[0]) return { error: "Огласот не е пронајден." };
   return { notice: mapNotice(rows[0]) };

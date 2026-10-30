@@ -205,7 +205,7 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
-const SCHEMA_VERSION = "2026-10-27-notices";
+const SCHEMA_VERSION = "2026-10-30-months";
 
 async function setup() {
   try {

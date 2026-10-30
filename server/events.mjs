@@ -2,7 +2,7 @@ import { events as seedEvents } from "../src/data.js";
 
 const kinds = ["Вебинар", "Работилница", "Обука", "Средба"];
 const statuses = ["Претстои", "Завршен"];
-const months = ["Јан", "Фев", "Мар", "Апр", "Мај", "Јун", "Јул", "Авг", "Сеп", "Окт", "Ное", "Дек"];
+const months = ["Јан", "Фев", "Мар", "Апр", "Мај", "Јуни", "Јули", "Авг", "Сеп", "Окт", "Ное", "Дек"];
 
 export async function ensureEvents(pool) {
   await pool.query(`

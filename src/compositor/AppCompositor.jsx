@@ -21,7 +21,7 @@ export const MONTHS = [
   "Декември",
 ];
 
-export const MONTHS_SHORT = ["Јан", "Фев", "Мар", "Апр", "Мај", "Јун", "Јул", "Авг", "Сеп", "Окт", "Ное", "Дек"];
+export const MONTHS_SHORT = ["Јан", "Фев", "Мар", "Апр", "Мај", "Јуни", "Јули", "Авг", "Сеп", "Окт", "Ное", "Дек"];
 
 export const defaultProfile = {
   name: "Илија Станковски",
