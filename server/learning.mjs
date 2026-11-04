@@ -613,6 +613,11 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       const gap = saved ? Math.max(0, (Date.now() - new Date(saved.updated_at).getTime()) / 1000) : 2;
       const watched = Math.min(Math.max(0, Number(body.watched) || 0), gap + 1.5);
       let furthest = previous + watched;
+      const directFile = /^(?:\/api\/media\/file\/|\/uploads\/)/.test(moduleRow.rows[0].video_url) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(moduleRow.rows[0].video_url);
+      if (body.external && body.completed && !directFile) {
+        furthest = Math.max(furthest, 1);
+        await pool.query("UPDATE training_modules SET duration_seconds = GREATEST(duration_seconds, 1) WHERE id = $1", [moduleRow.rows[0].id]);
+      }
       if (!moduleRow.rows[0].video_url && body.completed) furthest = Math.max(furthest, 1);
       const position = Math.min(Math.max(0, Number(body.position) || 0), furthest);
       const duration = Number(body.duration);

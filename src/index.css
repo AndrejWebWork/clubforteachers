@@ -1453,6 +1453,26 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
     radial-gradient(circle at 18% 20%, color-mix(in oklab, var(--brand-deep) 55%, transparent), transparent 42%),
     var(--brand-ink);
 }
+.lesson-frame {
+  display: block;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border: 0;
+  background: var(--brand-ink);
+}
+.lesson-link {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+.lesson-link p {
+  max-width: 28rem;
+  color: white;
+  font-weight: 700;
+}
 .lesson-stage video {
   height: 100%;
   width: 100%;

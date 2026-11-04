@@ -12,6 +12,38 @@ function formatTime(value) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+function mediaKind(url) {
+  const value = String(url || "");
+  if (!value) return "none";
+  if (value.startsWith("/api/media/file/") || value.startsWith("/uploads/")) return "file";
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return "file";
+  }
+  if (/\.(mp4|webm|ogg|mov|m4v)$/i.test(parsed.pathname)) return "file";
+  const host = parsed.hostname.replace(/^www\./, "");
+  if (host === "youtu.be" || host.endsWith("youtube.com") || host.endsWith("vimeo.com") || host === "drive.google.com") return "embed";
+  return "link";
+}
+
+function embedSrc(url) {
+  const parsed = new URL(url);
+  const host = parsed.hostname.replace(/^www\./, "");
+  if (host === "youtu.be") return `https://www.youtube-nocookie.com/embed/${parsed.pathname.slice(1)}`;
+  if (host.endsWith("youtube.com")) {
+    const id = parsed.searchParams.get("v") || parsed.pathname.split("/").filter(Boolean).pop();
+    return id ? `https://www.youtube-nocookie.com/embed/${id}` : "";
+  }
+  if (host.endsWith("vimeo.com")) {
+    const id = parsed.pathname.split("/").filter(Boolean).pop();
+    return id ? `https://player.vimeo.com/video/${id}` : "";
+  }
+  const fileId = parsed.pathname.match(/\/d\/([^/]+)/)?.[1];
+  return fileId ? `https://drive.google.com/file/d/${fileId}/preview` : "";
+}
+
 export default function TrainingPlayer() {
   const { trainingId } = useParams();
   const navigate = useNavigate();
@@ -134,6 +166,22 @@ export default function TrainingPlayer() {
 
   const duration = length || active?.durationSeconds || 0;
   const quizOpen = Boolean(training.modulesReady);
+  const kind = mediaKind(active?.videoUrl);
+  const linkSeen = kind !== "file" && (active?.progress?.furthest || 0) >= 1;
+
+  async function markLinkWatched() {
+    const data = await api.saveProgress(training.id, {
+      moduleId: active.id,
+      position: 1,
+      watched: 0,
+      completed: true,
+      external: true,
+    });
+    const fresh = await api.training(training.id);
+    setTraining(fresh.training);
+    furthestRef.current = data.furthest;
+    setFurthest(data.furthest);
+  }
 
   function rewind() {
     const node = videoRef.current;
@@ -176,7 +224,7 @@ export default function TrainingPlayer() {
         ))}
       </div>
       <p className="module-note">Изгледајте го видеото на секој модул. Потоа следува тест, евалуација и сертификат.</p>
-      {active?.videoUrl ? (
+      {kind === "file" ? (
         <section className="lesson-player">
           <div className="lesson-stage">
             <video
@@ -228,6 +276,23 @@ export default function TrainingPlayer() {
             </div>
           </div>
           <p>Може да паузирате и да се вратите назад. Напред се оди само со гледање.</p>
+        </section>
+      ) : kind === "embed" || kind === "link" ? (
+        <section className="lesson-player">
+          {kind === "embed" && embedSrc(active.videoUrl) ? (
+            <iframe className="lesson-frame" src={embedSrc(active.videoUrl)} title={active.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          ) : (
+            <div className="lesson-stage lesson-link">
+              <p>Снимката е на линк. Отворете ја, изгледајте ја, па означете го модулот.</p>
+              <Button asChild variant="yellow">
+                <a href={active.videoUrl} target="_blank" rel="noreferrer">Отвори ја снимката</a>
+              </Button>
+            </div>
+          )}
+          <p>
+            {linkSeen ? "Модулот е означен како изгледан." : "Откако ќе ја изгледате снимката, означете го модулот за да продолжи обуката."}
+          </p>
+          {!linkSeen && <Button className="m-4" type="button" onClick={markLinkWatched}>Ја изгледав снимката</Button>}
         </section>
       ) : (
         <section className="panel">
