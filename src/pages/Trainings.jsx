@@ -8,6 +8,11 @@ import { Button, PageHeader } from "../components/ui";
 
 const emptyText = "Нема резултати за избраните критериуми.";
 
+function trainingCover(image) {
+  if (image && (image.startsWith("/") || image.startsWith("https://"))) return image;
+  return images[image] || images.webinar;
+}
+
 function openStatus(status) {
   return status === "Отворена" ? "Отворена" : "Затворена";
 }
@@ -101,7 +106,7 @@ export default function Trainings() {
             return (
               <article key={item.id} className="training-card group">
                 <div className="relative h-44 overflow-hidden">
-                  <img src={images[item.image] || images.webinar} alt="" className="h-full w-full object-cover" />
+                  <img src={trainingCover(item.image)} alt="" className="h-full w-full object-cover" />
                   <span className={`status-badge ${status === "Отворена" ? "open" : "closed"}`}>{status}</span>
                 </div>
                 <div className="p-5">

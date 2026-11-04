@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { uploadStatus, uploadVideoFile } from "../media";
+import { placeFile, uploadStatus, uploadVideoFile } from "../media";
 import { Button, FilePick, SuccessPop, uploadFailed } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
@@ -49,11 +49,21 @@ export default function TrainingAdmin() {
         onSubmit={(event) => {
           event.preventDefault();
           const file = event.currentTarget.elements.video.files?.[0];
+          const cover = event.currentTarget.elements.cover.files?.[0];
           const node = event.currentTarget;
           const title = form.title.trim();
           run(async () => {
             const payload = { ...form };
             setUploadNote("");
+            if (cover) {
+              if (!cover.type.startsWith("image/")) throw new Error("Cover мора да биде слика.");
+              const saved = await placeFile(cover);
+              if (saved.url) payload.image = saved.url;
+              else if (saved.data) {
+                payload.coverData = saved.data;
+                payload.coverName = cover.name;
+              }
+            }
             if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
             await api.addTraining(payload);
             setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
@@ -84,6 +94,11 @@ export default function TrainingAdmin() {
         </div>
         <span className="text-sm font-medium text-muted-foreground">Нова тема што досега ја нема добива свое сортирање кај обуките. Празното место го задржува истиот текст.</span>
         <div className="text-sm font-bold text-brand-deep">
+          Cover слика
+          <FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" />
+          <span className="mt-1 block font-medium text-muted-foreground">Се појавува на картичката на обуката. Ако не се прикачи, останува подготвената слика.</span>
+        </div>
+        <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
           <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 1080p. Во базата останува само врската, не самиот фајл.</span>
@@ -102,6 +117,25 @@ export default function TrainingAdmin() {
               <div>
                 <b className="text-brand-deep">{item.title}</b>
                 <p className="text-sm text-muted-foreground">{item.category} · Модул {item.module || 1} · {item.status} · {item.videoUrl ? "со видео" : "без видео"}</p>
+                <label className="mt-2 block text-xs font-bold text-brand-deep">
+                  Смени cover
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="mt-1 block text-sm font-medium"
+                    onChange={(event) => {
+                      const cover = event.target.files?.[0];
+                      event.target.value = "";
+                      if (!cover) return;
+                      run(async () => {
+                        if (!cover.type.startsWith("image/")) throw new Error("Cover мора да биде слика.");
+                        const saved = await placeFile(cover);
+                        const body = saved.url ? { image: saved.url } : { coverData: saved.data, coverName: cover.name };
+                        await api.updateTraining(item.id, body);
+                      });
+                    }}
+                  />
+                </label>
               </div>
               <div className="flex items-center gap-2">
                 <select

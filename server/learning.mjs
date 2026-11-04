@@ -487,10 +487,19 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !/^https:\/\//.test(videoUrl)) {
       return { status: 400, body: { error: "Линкот мора да почнува со https://." } };
     }
+    let cover = storedLink(body.image) || (/^https:\/\//.test(body.image || "") ? text(body.image, 2000) : text(body.image, 40));
+    if (!cover && body.coverData) {
+      const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
+      if (saved.error) return { status: 400, body: { error: saved.error } };
+      cover = saved.url;
+    }
+    if (cover && !["webinar", "project", "resource"].includes(cover) && !cover.startsWith("/uploads/") && !cover.startsWith("/api/media/file/") && !/^https:\/\//.test(cover)) {
+      return { status: 400, body: { error: "Cover сликата не е валидна." } };
+    }
     const trainingId = fileId("obuka");
     await pool.query(
       `INSERT INTO trainings (id, title, category, description, duration, format, level, status, image, video_url, module_no, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'project',$9,$10, NOW())`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW())`,
       [
         trainingId,
         title,
@@ -500,6 +509,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
         text(body.format, 40) || "Онлајн",
         text(body.level, 40) || "Сите нивоа",
         text(body.status, 40) || "Отворена",
+        cover || "project",
         videoUrl,
         moduleNumber(body.module),
       ],
@@ -706,8 +716,22 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   if (method === "PATCH" && trainingMatch) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
-    if (body.module && !body.title) {
+    if (body.module && !body.title && !body.image && !body.coverData) {
       const updated = await pool.query("UPDATE trainings SET module_no = $1 WHERE id = $2", [moduleNumber(body.module), trainingMatch[1]]);
+      if (!updated.rowCount) return { status: 404, body: { error: "Обуката не е пронајдена." } };
+      return { status: 200, body: { ok: true } };
+    }
+    if ((body.image || body.coverData) && !body.title) {
+      let cover = storedLink(body.image) || text(body.image, 2000);
+      if (!cover && body.coverData) {
+        const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
+        if (saved.error) return { status: 400, body: { error: saved.error } };
+        cover = saved.url;
+      }
+      if (!cover || (!["webinar", "project", "resource"].includes(cover) && !cover.startsWith("/uploads/") && !cover.startsWith("/api/media/file/") && !/^https:\/\//.test(cover))) {
+        return { status: 400, body: { error: "Cover сликата не е валидна." } };
+      }
+      const updated = await pool.query("UPDATE trainings SET image = $1 WHERE id = $2", [cover, trainingMatch[1]]);
       if (!updated.rowCount) return { status: 404, body: { error: "Обуката не е пронајдена." } };
       return { status: 200, body: { ok: true } };
     }
