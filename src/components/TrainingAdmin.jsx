@@ -117,12 +117,10 @@ export default function TrainingAdmin() {
               <div>
                 <b className="text-brand-deep">{item.title}</b>
                 <p className="text-sm text-muted-foreground">{item.category} · Модул {item.module || 1} · {item.status} · {item.videoUrl ? "со видео" : "без видео"}</p>
-                <label className="mt-2 block text-xs font-bold text-brand-deep">
-                  Смени cover
-                  <input
-                    type="file"
+                <div className="mt-2">
+                  <span className="block text-xs font-bold text-brand-deep">Смени cover</span>
+                  <FilePick
                     accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="mt-1 block text-sm font-medium"
                     onChange={(event) => {
                       const cover = event.target.files?.[0];
                       event.target.value = "";
@@ -135,7 +133,7 @@ export default function TrainingAdmin() {
                       });
                     }}
                   />
-                </label>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <select
