@@ -272,8 +272,17 @@ export function fileTicket(config, originalName) {
   };
 }
 
-export function watchUrl(config, key) {
-  return presign({ config, method: "GET", key, expires: 43200 });
+function videoContentType(key) {
+  const ext = String(key).split(".").pop()?.toLowerCase();
+  if (ext === "webm") return "video/webm";
+  if (ext === "mov") return "video/quicktime";
+  if (ext === "ogg") return "video/ogg";
+  return "video/mp4";
+}
+
+export function watchUrl(config, key, declareType = true) {
+  const extra = declareType && String(key).startsWith("videos/") ? [["response-content-type", videoContentType(key)]] : [];
+  return presign({ config, method: "GET", key, expires: 43200, extra });
 }
 
 export function saveVideoStream(req, uploadDir, originalName) {

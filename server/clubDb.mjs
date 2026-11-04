@@ -602,6 +602,7 @@ async function handle(method, url, req) {
     const { mediaConfig, openLargeUpload } = await import("./mediaStore.mjs");
     const config = mediaConfig(root);
     if (!config.remote) return { status: 400, body: { error: "Бесплатниот надворешен склад не е поврзан." } };
+    if (Number(body.size) > 500 * 1024 * 1024) return { status: 400, body: { error: "Снимката може да биде до 500 MB." } };
     try {
       return { status: 200, body: await openLargeUpload(config, body.name, body.size) };
     } catch (error) {

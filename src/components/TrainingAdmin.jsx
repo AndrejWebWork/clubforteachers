@@ -121,7 +121,7 @@ export default function TrainingAdmin() {
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
           <input className={`${inputClass} mt-2`} placeholder="или јавен Google Drive линк до снимката" value={form.driveLink} onChange={(event) => setForm({ ...form, driveLink: event.target.value })} />
-          <span className="mt-1 block font-medium text-muted-foreground">Директно качување е до 25 MB. За подолга снимка залепете јавен Google Drive линк. Линкот се пушта овде, а фајлот мора да биде споделен со секој што го има линкот.</span>
+          <span className="mt-1 block font-medium text-muted-foreground">Директно качување е до 500 MB. За подолга снимка залепете јавен Google Drive линк. Линкот се пушта овде, а фајлот мора да биде споделен со секој што го има линкот.</span>
         </div>
         <Button type="submit">Постави обука</Button>
       </form>
@@ -272,7 +272,7 @@ export default function TrainingAdmin() {
             Нова снимка
             <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
             <input className={`${inputClass} mt-2`} placeholder="или јавен Google Drive линк. Се пушта овде, не на Drive." value={course.videoLink} onChange={(event) => setCourse({ ...course, videoLink: event.target.value })} />
-            <span className="mt-1 block font-medium text-muted-foreground">Директно качување е до 25 MB. За подолга снимка залепете јавен Google Drive линк. Празно поле ја остава сегашната снимка.</span>
+            <span className="mt-1 block font-medium text-muted-foreground">Директно качување е до 500 MB. За подолга снимка залепете јавен Google Drive линк. Празно поле ја остава сегашната снимка.</span>
           </div>
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>
