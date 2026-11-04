@@ -76,6 +76,7 @@ export default function TrainingPlayer() {
     if (!signedIn) return;
     api.training(trainingId)
       .then((data) => {
+        document.title = `${data.training.title} · Клуб на наставници`;
         setTraining(data.training);
         furthestRef.current = data.training.progress.furthest;
         setFurthest(data.training.progress.furthest);

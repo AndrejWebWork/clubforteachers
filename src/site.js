@@ -89,6 +89,14 @@ export const pages = [
 ];
 
 export function pageByPath(pathname) {
+  if (pathname.startsWith("/obuki/") && pathname !== "/obuki") {
+    return {
+      path: pathname,
+      title: "Обука",
+      description: "Обука на платформата Клуб на наставници.",
+      robots: "noindex, nofollow",
+    };
+  }
   if (pathname.startsWith("/resursi/")) {
     const item = resources.find((resource) => pathname === `/resursi/${resource.id}`);
     if (item) return { path: pathname, title: item.title, description: item.detail };
