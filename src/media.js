@@ -1,6 +1,10 @@
 import { getToken } from "./api";
 
 const LARGE_VIDEO = 800 * 1024 * 1024;
+const STORAGE_VIDEO_LIMIT = 25 * 1024 * 1024;
+const MIN_FIT_BITRATE = 700_000;
+
+export const storageVideoMessage = "Бесплатниот склад прима видео до 25 MB. За подолга снимка залепете јавен Google Drive линк.";
 
 function uploadError(xhr) {
   if (!xhr.status) return "Прелистувачот не стигна до складот.";
@@ -11,7 +15,9 @@ function uploadError(xhr) {
     payload = {};
   }
   if (payload.error) return payload.error;
-  const code = String(xhr.responseText || "").match(/<Code>([^<]+)<\/Code>/)?.[1] || "";
+  const body = String(xhr.responseText || "");
+  const code = body.match(/<Code>([^<]+)<\/Code>/)?.[1] || "";
+  if (code === "AccountProblem" || /25\s?MB/i.test(body)) return storageVideoMessage;
   if (code === "EntityTooLarge" || xhr.status === 413) return "Датотеката е преголема за едно качување.";
   if (xhr.status === 403 || code === "AccessDenied" || code === "SignatureDoesNotMatch") return "Складот ја одби датотеката.";
   return "Качувањето не успеа.";
@@ -135,8 +141,23 @@ export function uploadStatus(update) {
   return update?.percent < 100 ? `Се качува… ${update.percent}%` : "Се зачувува…";
 }
 
-async function shrinkVideo(file, onProgress) {
-  if (file.size < SMALL_VIDEO || typeof VideoEncoder === "undefined") return file;
+function readDuration(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const finish = (value) => {
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    video.preload = "metadata";
+    video.onloadedmetadata = () => finish(Number.isFinite(video.duration) ? video.duration : 0);
+    video.onerror = () => finish(0);
+    video.src = url;
+  });
+}
+
+async function shrinkVideo(file, onProgress, targetBitrate = 0) {
+  if ((!targetBitrate && file.size < SMALL_VIDEO) || typeof VideoEncoder === "undefined") return file;
   onProgress?.({ phase: "shrink", percent: 1 });
   let input;
   try {
@@ -146,7 +167,8 @@ async function shrinkVideo(file, onProgress) {
     if (!track) return file;
     const height = track.displayHeight || 0;
     const bitrate = await track.getAverageBitrate();
-    if (height > 0 && height <= 1080 && bitrate && bitrate <= 2_800_000) return file;
+    if (!targetBitrate && height > 0 && height <= 1080 && bitrate && bitrate <= 2_800_000) return file;
+    const fittedHeight = targetBitrate ? (height > 720 ? 720 : 0) : (height > 1080 ? 1080 : 0);
     const output = new Output({
       format: new Mp4OutputFormat({ fastStart: "in-memory" }),
       target: new BufferTarget(),
@@ -156,8 +178,8 @@ async function shrinkVideo(file, onProgress) {
       output,
       video: {
         codec: "avc",
-        ...(height > 1080 ? { height: 1080 } : {}),
-        quality: new Quality({ bitrate: 2_500_000, bitrateMode: "variable" }),
+        ...(fittedHeight ? { height: fittedHeight } : {}),
+        quality: new Quality({ bitrate: targetBitrate || 2_500_000, bitrateMode: "variable" }),
         hardwareAcceleration: "prefer-hardware",
       },
       audio: {
@@ -185,7 +207,14 @@ async function shrinkVideo(file, onProgress) {
 
 export async function uploadVideoFile(file, onProgress) {
   if (!file) return "";
-  const packed = await shrinkVideo(file, onProgress);
+  let packed = await shrinkVideo(file, onProgress);
+  if (packed.size > STORAGE_VIDEO_LIMIT) {
+    const duration = await readDuration(file);
+    const bitrate = Math.floor((24 * 1024 * 1024 * 8) / Math.max(duration, 1) - 128_000);
+    if (!duration || bitrate < MIN_FIT_BITRATE || typeof VideoEncoder === "undefined") throw new Error(storageVideoMessage);
+    packed = await shrinkVideo(file, onProgress, bitrate);
+    if (packed.size > STORAGE_VIDEO_LIMIT) throw new Error(storageVideoMessage);
+  }
   const reportUpload = (percent) => onProgress?.({ phase: "upload", percent });
   if (packed.size > LARGE_VIDEO) return uploadLargeVideo(packed, reportUpload);
   const granted = await ticket("/api/media/ticket", packed.name || "video.mp4");
