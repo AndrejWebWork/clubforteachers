@@ -51,6 +51,8 @@ export default function TrainingPlayer() {
   const videoRef = useRef(null);
   const furthestRef = useRef(0);
   const pendingRef = useRef(0);
+  const lastTick = useRef(0);
+  const trainingRef = useRef(null);
   const [training, setTraining] = useState(null);
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
@@ -85,6 +87,43 @@ export default function TrainingPlayer() {
   }, [signedIn, trainingId]);
 
   const active = training?.modules?.find((item) => item.id === activeId) || training?.modules?.[0] || null;
+  trainingRef.current = training;
+
+  function rememberProgress(data, moduleId, position, knownDuration) {
+    furthestRef.current = data.furthest;
+    setFurthest(data.furthest);
+    setTraining((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        modulesReady: data.modulesReady ?? current.modulesReady,
+        modules: (current.modules || []).map((item) => item.id === moduleId ? {
+          ...item,
+          durationSeconds: knownDuration > 1 ? knownDuration : item.durationSeconds,
+          progress: { position, furthest: data.furthest },
+        } : item),
+      };
+    });
+  }
+
+  function sendProgress(module, video, extra = 0) {
+    const current = trainingRef.current;
+    if (!module || !current) return Promise.resolve();
+    const watched = pendingRef.current + extra;
+    pendingRef.current = 0;
+    if (watched <= 0) return Promise.resolve();
+    const known = Number.isFinite(video?.duration) ? video.duration : 0;
+    const position = known > 1 && video?.ended ? known : video?.currentTime || 0;
+    return api.saveProgress(current.id, {
+      moduleId: module.id,
+      position,
+      watched,
+      duration: known,
+    }).then((data) => {
+      rememberProgress(data, module.id, position, known);
+      if (video && video.currentTime > data.furthest + 1.5) video.currentTime = data.furthest;
+    }).catch(() => {});
+  }
 
   useEffect(() => {
     const video = videoRef.current;
@@ -105,11 +144,13 @@ export default function TrainingPlayer() {
         return;
       }
       setTime(video.currentTime);
-      if (!video.paused && video.currentTime >= furthestRef.current - 1) {
+      if (!video.paused && video.currentTime <= furthestRef.current + 0.6) {
+        const delta = lastTick.current ? Math.max(0, video.currentTime - lastTick.current) : 0;
+        if (delta > 0 && delta < 2) pendingRef.current += delta;
         furthestRef.current = Math.max(furthestRef.current, video.currentTime);
         setFurthest(furthestRef.current);
       }
-      if (!video.paused) pendingRef.current += 0.25;
+      lastTick.current = video.currentTime;
     };
     video.addEventListener("loadedmetadata", place);
     video.addEventListener("seeking", guard);
@@ -126,31 +167,14 @@ export default function TrainingPlayer() {
   }, [active]);
 
   useEffect(() => {
-    if (!active?.videoUrl) return;
-    const timer = setInterval(() => {
-      const video = videoRef.current;
-      const watched = pendingRef.current;
-      pendingRef.current = 0;
-      if (!video || watched <= 0) return;
-      api.saveProgress(training.id, {
-        moduleId: active.id,
-        position: video.currentTime,
-        watched,
-        duration: Number.isFinite(video.duration) ? video.duration : 0,
-      }).then((data) => {
-        furthestRef.current = data.furthest;
-        setFurthest(data.furthest);
-        if (video.currentTime > data.furthest + 1.5) video.currentTime = data.furthest;
-        const known = Number.isFinite(video.duration) ? video.duration : 0;
-        if (data.modulesReady || (known > 0 && data.furthest >= known - 3)) {
-          api.training(training.id).then((fresh) => {
-            setTraining((current) => current ? { ...current, modulesReady: fresh.training.modulesReady } : current);
-          }).catch(() => {});
-        }
-      }).catch(() => {});
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [active, training]);
+    if (!active?.id || mediaKind(active.videoUrl) !== "file") return undefined;
+    const module = active;
+    const timer = setInterval(() => sendProgress(module, videoRef.current), 4000);
+    return () => {
+      clearInterval(timer);
+      sendProgress(module, videoRef.current);
+    };
+  }, [active?.id, active?.videoUrl]);
 
   if (!authReady) return <section className="panel">Се вчитува...</section>;
   if (!signedIn) {
@@ -167,6 +191,12 @@ export default function TrainingPlayer() {
   const duration = length || active?.durationSeconds || 0;
   const quizOpen = Boolean(training.modulesReady);
   const kind = mediaKind(active?.videoUrl);
+
+  function playableDone(item) {
+    const seen = item.id === active?.id ? furthest : item.progress?.furthest || 0;
+    const total = item.id === active?.id ? duration || item.durationSeconds : item.durationSeconds;
+    return total > 1 && seen >= total - 1.5;
+  }
 
   function rewind() {
     const node = videoRef.current;
@@ -201,10 +231,10 @@ export default function TrainingPlayer() {
               setTime(item.progress.position);
               setLength(item.durationSeconds || 0);
               setPlaying(false);
-              pendingRef.current = 0;
+              lastTick.current = 0;
             }}
           >
-            {item.title}{item.videoUrl ? "" : " · без видео"}
+            {item.title}{item.videoUrl ? "" : " · без видео"}{playableDone(item) ? " · изгледан" : ""}
           </button>
         ))}
       </div>
@@ -221,6 +251,16 @@ export default function TrainingPlayer() {
               onClick={toggle}
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
+              onEnded={() => {
+                const node = videoRef.current;
+                if (node && Number.isFinite(node.duration)) {
+                  furthestRef.current = Math.max(furthestRef.current, node.duration);
+                  setFurthest(furthestRef.current);
+                  setTime(node.duration);
+                }
+                setPlaying(false);
+                sendProgress(active, node, 1.5);
+              }}
               onContextMenu={(event) => event.preventDefault()}
             />
             {!playing && (
@@ -294,9 +334,11 @@ export default function TrainingPlayer() {
         <h2 className="section-heading">Тест</h2>
         {!quizOpen && !awaitingEval && (
           <p className="text-sm text-muted-foreground">
-            {training.modules?.some((item) => item.videoUrl)
-              ? "Тестот се појавува откако ќе ги изгледате видеата од модулите."
-              : "Тестот се појавува откако ќе продолжите од модулите."}
+            {training.modules?.some((item) => mediaKind(item.videoUrl) === "file")
+              ? "Тестот се појавува откако секој модул ќе биде изгледан до крај."
+              : training.modules?.some((item) => item.videoUrl)
+                ? "Овие снимки се надворешни линкови. Платформата не може да измери дали се изгледани до крај, па тестот се отвора кога модулот има видео што се пушта тука."
+                : "Тестот се појавува откако ќе продолжите од модулите."}
           </p>
         )}
         {quizOpen && !awaitingEval && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}

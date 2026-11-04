@@ -229,6 +229,17 @@ function moduleNumber(value) {
   return Number(value) === 2 ? 2 : 1;
 }
 
+function playableVideo(url) {
+  return /^(?:\/api\/media\/(?:file|drive)\/|\/uploads\/)/.test(url) || Boolean(driveVideoPath(url)) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(url);
+}
+
+function moduleFinished(duration, furthest) {
+  const length = Number(duration);
+  const seen = Number(furthest);
+  if (!(length > 1) || !Number.isFinite(length)) return false;
+  return seen >= length - 1.5;
+}
+
 async function videosReady(pool, userId, trainingId) {
   const { rows } = await pool.query(
     `SELECT m.video_url, m.duration_seconds, COALESCE(p.furthest_seconds, 0) AS furthest
@@ -237,13 +248,13 @@ async function videosReady(pool, userId, trainingId) {
      WHERE m.training_id = $2 AND m.video_url <> ''`,
     [userId, trainingId],
   );
-  const tracked = rows.filter((row) => /^(?:\/api\/media\/(?:file|drive)\/|\/uploads\/)/.test(row.video_url) || Boolean(driveVideoPath(row.video_url)) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(row.video_url));
+  const tracked = rows.filter((row) => playableVideo(row.video_url));
   if (!rows.length) {
     const progress = await pool.query("SELECT furthest_seconds FROM training_progress WHERE user_id = $1 AND training_id = $2", [userId, trainingId]);
     return Number(progress.rows[0]?.furthest_seconds || 0) >= 1;
   }
-  if (!tracked.length) return true;
-  return tracked.every((row) => Number(row.duration_seconds) > 0 && Number(row.furthest) >= Number(row.duration_seconds) - 3);
+  if (!tracked.length) return false;
+  return tracked.every((row) => moduleFinished(row.duration_seconds, row.furthest));
 }
 
 async function questionsFor(pool, trainingId) {
@@ -579,12 +590,16 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       const previous = Number(saved?.furthest_seconds || 0);
       const gap = saved ? Math.max(0, (Date.now() - new Date(saved.updated_at).getTime()) / 1000) : 2;
       const watched = Math.min(Math.max(0, Number(body.watched) || 0), gap + 1.5);
-      let furthest = previous + watched;
+      const claimed = Math.max(previous + watched, Number(body.position) || 0);
+      let furthest = Math.min(Math.max(previous, claimed), previous + gap + 1.5);
       if (!moduleRow.rows[0].video_url && body.completed) furthest = Math.max(furthest, 1);
       const position = Math.min(Math.max(0, Number(body.position) || 0), furthest);
       const duration = Number(body.duration);
-      if (Number.isFinite(duration) && duration > 0) {
-        await pool.query("UPDATE training_modules SET duration_seconds = $1 WHERE id = $2 AND duration_seconds = 0", [duration, moduleRow.rows[0].id]);
+      if (Number.isFinite(duration) && duration > 1 && duration <= 8 * 3600) {
+        await pool.query(
+          "UPDATE training_modules SET duration_seconds = $1 WHERE id = $2 AND (duration_seconds = 0 OR duration_seconds + 1 < $1)",
+          [duration, moduleRow.rows[0].id],
+        );
       }
       await pool.query(
         `INSERT INTO module_progress (user_id, module_id, position_seconds, furthest_seconds, updated_at)
