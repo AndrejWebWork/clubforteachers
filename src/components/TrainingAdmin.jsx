@@ -17,7 +17,10 @@ export default function TrainingAdmin() {
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
   const [editPulse, setEditPulse] = useState(0);
+  const [quizPulse, setQuizPulse] = useState(0);
+  const [quizNote, setQuizNote] = useState("");
   const courseRef = useRef(null);
+  const quizRef = useRef(null);
   const [questions, setQuestions] = useState([]);
 
   function load() {
@@ -31,6 +34,14 @@ export default function TrainingAdmin() {
     node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     node.focus({ preventScroll: true });
   }, [editPulse]);
+
+  useEffect(() => {
+    if (!quizPulse || !quizRef.current) return;
+    const node = quizRef.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    node.focus({ preventScroll: true });
+  }, [quizPulse]);
 
   useEffect(() => {
     load().catch((reason) => setError(reason.message));
@@ -179,12 +190,14 @@ export default function TrainingAdmin() {
                   variant="outline"
                   onClick={() => run(async () => {
                     const data = await api.training(item.id);
+                    setQuizNote("");
                     setEditing(data.training);
                     setQuestions(data.training.questions.length ? data.training.questions.map((question) => ({
                       prompt: question.prompt,
-                      options: question.options,
+                      options: Array.isArray(question.options) ? question.options : ["", "", "", ""],
                       correctIndex: question.correctIndex ?? 0,
                     })) : [emptyQuestion()]);
+                    setQuizPulse((value) => value + 1);
                   })}
                 >
                   Тест
@@ -270,13 +283,25 @@ export default function TrainingAdmin() {
 
       {editing && (
         <form
-          className="panel grid gap-4"
-          onSubmit={(event) => {
+          key={quizPulse}
+          ref={quizRef}
+          tabIndex={-1}
+          className="panel edit-arrive grid gap-4"
+          onSubmit={async (event) => {
             event.preventDefault();
-            run(async () => {
+            setQuizNote("");
+            setError("");
+            const incomplete = !questions.length || questions.some((question) => !question.prompt.trim() || question.options.some((option) => !String(option).trim()));
+            if (incomplete) {
+              setQuizNote("Секое прашање треба текст и 4 пополнети одговори. Означете го точниот.");
+              return;
+            }
+            try {
               await api.saveQuiz(editing.id, questions);
-              setNotice("Тестот е зачуван.");
-            });
+              setQuizNote("Тестот е зачуван.");
+            } catch (reason) {
+              setQuizNote(reason.message);
+            }
           }}
         >
           <h2 className="section-heading">Тест за „{editing.title}“</h2>
@@ -294,6 +319,7 @@ export default function TrainingAdmin() {
             </fieldset>
           ))}
           </div>
+          {quizNote && <p className={`text-sm font-semibold ${quizNote === "Тестот е зачуван." ? "text-brand-deep" : "text-brand-urgent"}`}>{quizNote}</p>}
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => setQuestions((current) => [...current, emptyQuestion()])}>Додај прашање</Button>
             <Button type="submit">Зачувај тест</Button>
