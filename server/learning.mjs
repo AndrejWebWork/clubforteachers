@@ -251,17 +251,19 @@ function moduleNumber(value) {
 
 async function videosReady(pool, userId, trainingId) {
   const { rows } = await pool.query(
-    `SELECT m.duration_seconds, COALESCE(p.furthest_seconds, 0) AS furthest
+    `SELECT m.video_url, m.duration_seconds, COALESCE(p.furthest_seconds, 0) AS furthest
      FROM training_modules m
      LEFT JOIN module_progress p ON p.module_id = m.id AND p.user_id = $1
      WHERE m.training_id = $2 AND m.video_url <> ''`,
     [userId, trainingId],
   );
+  const tracked = rows.filter((row) => /^(?:\/api\/media\/file\/|\/uploads\/)/.test(row.video_url) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(row.video_url));
   if (!rows.length) {
     const progress = await pool.query("SELECT furthest_seconds FROM training_progress WHERE user_id = $1 AND training_id = $2", [userId, trainingId]);
     return Number(progress.rows[0]?.furthest_seconds || 0) >= 1;
   }
-  return rows.every((row) => Number(row.duration_seconds) > 0 && Number(row.furthest) >= Number(row.duration_seconds) - 3);
+  if (!tracked.length) return true;
+  return tracked.every((row) => Number(row.duration_seconds) > 0 && Number(row.furthest) >= Number(row.duration_seconds) - 3);
 }
 
 async function questionsFor(pool, trainingId) {
@@ -613,11 +615,6 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       const gap = saved ? Math.max(0, (Date.now() - new Date(saved.updated_at).getTime()) / 1000) : 2;
       const watched = Math.min(Math.max(0, Number(body.watched) || 0), gap + 1.5);
       let furthest = previous + watched;
-      const directFile = /^(?:\/api\/media\/file\/|\/uploads\/)/.test(moduleRow.rows[0].video_url) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(moduleRow.rows[0].video_url);
-      if (body.external && body.completed && !directFile) {
-        furthest = Math.max(furthest, 1);
-        await pool.query("UPDATE training_modules SET duration_seconds = GREATEST(duration_seconds, 1) WHERE id = $1", [moduleRow.rows[0].id]);
-      }
       if (!moduleRow.rows[0].video_url && body.completed) furthest = Math.max(furthest, 1);
       const position = Math.min(Math.max(0, Number(body.position) || 0), furthest);
       const duration = Number(body.duration);

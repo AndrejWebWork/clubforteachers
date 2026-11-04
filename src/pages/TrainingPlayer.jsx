@@ -167,21 +167,6 @@ export default function TrainingPlayer() {
   const duration = length || active?.durationSeconds || 0;
   const quizOpen = Boolean(training.modulesReady);
   const kind = mediaKind(active?.videoUrl);
-  const linkSeen = kind !== "file" && (active?.progress?.furthest || 0) >= 1;
-
-  async function markLinkWatched() {
-    const data = await api.saveProgress(training.id, {
-      moduleId: active.id,
-      position: 1,
-      watched: 0,
-      completed: true,
-      external: true,
-    });
-    const fresh = await api.training(training.id);
-    setTraining(fresh.training);
-    furthestRef.current = data.furthest;
-    setFurthest(data.furthest);
-  }
 
   function rewind() {
     const node = videoRef.current;
@@ -283,16 +268,12 @@ export default function TrainingPlayer() {
             <iframe className="lesson-frame" src={embedSrc(active.videoUrl)} title={active.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
           ) : (
             <div className="lesson-stage lesson-link">
-              <p>Снимката е на линк. Отворете ја, изгледајте ја, па означете го модулот.</p>
+              <p>Снимката е на линк. Отворете ја и изгледајте ја.</p>
               <Button asChild variant="yellow">
                 <a href={active.videoUrl} target="_blank" rel="noreferrer">Отвори ја снимката</a>
               </Button>
             </div>
           )}
-          <p>
-            {linkSeen ? "Модулот е означен како изгледан." : "Откако ќе ја изгледате снимката, означете го модулот за да продолжи обуката."}
-          </p>
-          {!linkSeen && <Button className="m-4" type="button" onClick={markLinkWatched}>Ја изгледав снимката</Button>}
         </section>
       ) : (
         <section className="panel">
