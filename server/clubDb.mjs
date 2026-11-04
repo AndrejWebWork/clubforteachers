@@ -461,10 +461,7 @@ async function handle(method, url, req) {
   if ((method === "GET" || method === "HEAD") && driveWatch) {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
-    return {
-      status: 302,
-      redirect: `https://drive.usercontent.google.com/download?id=${encodeURIComponent(driveWatch[1])}&export=download&confirm=t`,
-    };
+    return { driveId: driveWatch[1] };
   }
 
   if (method === "GET" && url === "/api/media/storage") {
@@ -1104,6 +1101,47 @@ async function handle(method, url, req) {
   return { status: 404, body: { error: "Непозната патека." } };
 }
 
+const DRIVE_CHUNK = 2 * 1024 * 1024;
+
+function driveByteRange(header) {
+  const match = /^bytes=(\d+)-(\d*)$/.exec(String(header || ""));
+  const start = match ? Number(match[1]) : 0;
+  const asked = match && match[2] !== "" ? Number(match[2]) : start + DRIVE_CHUNK - 1;
+  const end = Math.min(asked, start + DRIVE_CHUNK - 1);
+  return { start, end: Number.isFinite(end) && end >= start ? end : start };
+}
+
+async function pipeDriveVideo(req, res, fileId) {
+  const { start, end } = driveByteRange(req.headers.range);
+  const target = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+  const upstream = await fetch(target, { headers: { Range: `bytes=${start}-${end}` }, redirect: "follow" });
+  const type = upstream.headers.get("content-type") || "";
+  const length = Number(upstream.headers.get("content-length") || 0);
+  if (!type.startsWith("video/") || (upstream.status === 200 && length > DRIVE_CHUNK)) {
+    res.statusCode = 502;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "Снимката од Drive не може да се пушти. Фајлот мора да биде видео споделено со секој што го има линкот." }));
+    return;
+  }
+  res.statusCode = 206;
+  res.setHeader("Content-Type", type);
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Cache-Control", "private, no-store");
+  const range = upstream.headers.get("content-range");
+  if (range) res.setHeader("Content-Range", range);
+  if (length) res.setHeader("Content-Length", String(length));
+  if ((req.method || "GET") === "HEAD" || !upstream.body) {
+    res.end();
+    return;
+  }
+  const { Readable } = await import("node:stream");
+  const stream = Readable.fromWeb(upstream.body);
+  const stop = () => stream.destroy();
+  req.on("close", stop);
+  res.on("close", stop);
+  stream.pipe(res);
+}
+
 export function clubApiMiddleware() {
   return async function clubApi(req, res, next) {
     applySecurityHeaders(req, res);
@@ -1122,6 +1160,10 @@ export function clubApiMiddleware() {
     if (!url.startsWith("/api/")) return next();
     try {
       const result = await handle(req.method || "GET", url, req);
+      if (result.driveId) {
+        await pipeDriveVideo(req, res, result.driveId);
+        return;
+      }
       if (result.redirect) {
         res.statusCode = result.status;
         res.setHeader("Location", result.redirect);
