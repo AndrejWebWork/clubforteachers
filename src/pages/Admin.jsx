@@ -62,6 +62,8 @@ export default function Admin() {
   const videoFile = useRef(null);
   const memberFile = useRef(null);
   const [mailForm, setMailForm] = useState({ subject: "", message: "", allTeachers: true, recipientIds: [], attachmentIds: [] });
+  const [fileForm, setFileForm] = useState({ title: "", kind: "Прирачник", source: "LEAD" });
+  const resourceKinds = ["Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"];
 
   async function load() {
     const [accountData, videoData, fileData, mailData, trainingData] = await Promise.all([
@@ -374,16 +376,34 @@ export default function Admin() {
                 const placed = await placeFile(file);
                 await api.addAttachment({
                   name: file.name,
+                  title: fileForm.title,
+                  kind: fileForm.kind,
+                  source: fileForm.source,
                   mime: file.type,
                   ...(placed.url ? { url: placed.url, size: placed.size } : { data: placed.data }),
                 });
                 form.reset();
+                setFileForm({ title: "", kind: "Прирачник", source: "LEAD" });
                 setNotice("Прилогот е прикачен.");
               }, true);
             }}
           >
             <h2 className="section-heading">Прикачи датотека</h2>
-            <p className="text-sm text-muted-foreground">Прилогот веднаш се појавува во Ресурси. Оттаму може да се отстрани ако не е соодветен.</p>
+            <p className="text-sm text-muted-foreground">Прилогот веднаш се појавува во Ресурси, во избраниот вид и извор.</p>
+            <Field label="Наслов">
+              <input className={inputClass} value={fileForm.title} onChange={(event) => setFileForm({ ...fileForm, title: event.target.value })} placeholder="Ако е празно, се користи името на датотеката" />
+            </Field>
+            <Field label="Вид">
+              <select className={inputClass} value={fileForm.kind} onChange={(event) => setFileForm({ ...fileForm, kind: event.target.value })}>
+                {resourceKinds.map((kind) => <option key={kind}>{kind}</option>)}
+              </select>
+            </Field>
+            <Field label="Се појавува во">
+              <select className={inputClass} value={fileForm.source} onChange={(event) => setFileForm({ ...fileForm, source: event.target.value })}>
+                <option value="LEAD">Ресурси од LEAD</option>
+                <option value="Наставници">Ресурси од наставници</option>
+              </select>
+            </Field>
             <FilePick name="file" required />
             <Button type="submit">Прикачи</Button>
           </form>

@@ -306,6 +306,8 @@ export async function listResources(pool) {
       id: row.id,
       title: row.title,
       category: row.category,
+      kind: ["Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"].includes(row.category) ? row.category : "",
+      source: row.author === "LEAD тим" ? "LEAD" : "Наставници",
       type: row.type,
       author: row.author,
       detail: row.detail,

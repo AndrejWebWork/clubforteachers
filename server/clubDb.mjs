@@ -891,6 +891,10 @@ async function handle(method, url, req) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
     const name = text(body.name, 120).replace(/[^\w.\- ()\u0400-\u04FF]+/g, "") || "prilog";
+    const resourceKinds = ["Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"];
+    const pickedKind = resourceKinds.includes(text(body.kind, 40)) ? text(body.kind, 40) : "Прилози";
+    const resourceTitle = text(body.title, 140) || name;
+    const resourceAuthor = text(body.source, 20) === "Наставници" ? auth.user.name : "LEAD тим";
     if (/\.(html?|svg|js|mjs|xml|xhtml)$/i.test(name)) {
       return { status: 400, body: { error: "Овој вид датотека не е дозволен." } };
     }
@@ -913,8 +917,8 @@ async function handle(method, url, req) {
       );
       await pool.query(
         `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, size_label, created_at)
-         VALUES ($1,'resource',$2,'Прилози',$3,$4,$2,$5,'', NOW())`,
-        [`res-${fileId}`, name, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), auth.user.name, linked],
+         VALUES ($1,'resource',$2,$3,$4,$5,$2,$6,'', NOW())`,
+        [`res-${fileId}`, resourceTitle, pickedKind, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), resourceAuthor, linked],
       );
       return { status: 201, body: { attachment: { id: fileId, name, mime, size, url: linked, createdAt } } };
     }
@@ -935,8 +939,8 @@ async function handle(method, url, req) {
     );
     await pool.query(
       `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, size_label, created_at)
-       VALUES ($1,'resource',$2,'Прилози',$3,$4,$2,$5,'', NOW())`,
-      [`res-${fileId}`, name, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), auth.user.name, kept.url],
+       VALUES ($1,'resource',$2,$3,$4,$5,$2,$6,'', NOW())`,
+      [`res-${fileId}`, resourceTitle, pickedKind, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), resourceAuthor, kept.url],
     );
     return { status: 201, body: { attachment: { id: fileId, name, mime, size: buffer.length, url: kept.url, createdAt } } };
   }
