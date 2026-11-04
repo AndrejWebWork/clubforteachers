@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -28,7 +28,25 @@ import CookieConsent from "./CookieConsent";
 import { api } from "../api";
 import Landing from "../pages/Landing";
 import { Button, UploadToast } from "./ui";
+import { dismissTrainingJob, watchTrainingJobs } from "../trainingJobs";
 import MotionRoot from "../motion/MotionRoot";
+
+function TrainingJobBar() {
+  const [jobs, setJobs] = useState([]);
+  useEffect(() => watchTrainingJobs(setJobs), []);
+  if (!jobs.length) return null;
+  return (
+    <div className="training-job" role="status">
+      {jobs.map((job) => (
+        <article key={job.id} className={job.error ? "is-error" : ""}>
+          <b>{job.title}</b>
+          <span>{job.error || job.note}</span>
+          {job.done && <button type="button" onClick={() => dismissTrainingJob(job.id)}>Затвори</button>}
+        </article>
+      ))}
+    </div>
+  );
+}
 
 const icons = {
   "/": Home,
@@ -398,6 +416,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       )}
+      <TrainingJobBar />
       <UploadToast />
     </div>
   );

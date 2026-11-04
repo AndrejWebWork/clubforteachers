@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { placeFile, uploadStatus, uploadVideoFile } from "../media";
+import { placeFile } from "../media";
+import { queueTraining, watchTrainingJobs } from "../trainingJobs";
 import { Button, FilePick, SuccessPop, uploadFailed } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
@@ -16,7 +17,6 @@ export default function TrainingAdmin() {
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [uploadNote, setUploadNote] = useState("");
 
   function load() {
     return api.trainings().then((data) => setTrainings(data.trainings));
@@ -24,6 +24,12 @@ export default function TrainingAdmin() {
 
   useEffect(() => {
     load().catch((reason) => setError(reason.message));
+    let seen = [];
+    return watchTrainingJobs((next) => {
+      const finished = next.some((job) => job.done && !job.error && !seen.some((item) => item.id === job.id && item.done));
+      seen = next;
+      if (finished) load().catch(() => {});
+    });
   }, []);
 
   async function run(action, upload = false) {
@@ -33,7 +39,6 @@ export default function TrainingAdmin() {
       await action();
       await load();
     } catch (reason) {
-      setUploadNote("");
       setError(reason.message);
       if (upload) uploadFailed(reason.message);
     }
@@ -51,30 +56,21 @@ export default function TrainingAdmin() {
           event.preventDefault();
           const file = event.currentTarget.elements.video.files?.[0];
           const cover = event.currentTarget.elements.cover.files?.[0];
-          const node = event.currentTarget;
           const title = form.title.trim();
-          run(async () => {
-            const payload = { ...form };
-            setUploadNote("");
-            if (cover) {
-              if (!cover.type.startsWith("image/")) throw new Error("Cover мора да биде слика.");
-              const saved = await placeFile(cover);
-              if (saved.url) payload.image = saved.url;
-              else if (saved.data) {
-                payload.coverData = saved.data;
-                payload.coverName = cover.name;
-              }
-            }
-            if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
-            await api.addTraining(payload);
-            setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
-            setUploadNote("");
-            node.reset();
-            setDone({
-              title: "Обуката е прикачена",
-              text: `„${title}“ е успешно поставена и е достапна кај обуките.`,
-            });
-          }, Boolean(file));
+          queueTraining({
+            title,
+            cover,
+            file,
+            module: form.module,
+            payload: { ...form, title },
+            mode: "create",
+          });
+          setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+          event.currentTarget.reset();
+          setDone({
+            title: "Поставувањето продолжи",
+            text: `„${title}“ се поставува во позадина. Може да излезете од админот и да ги проверите другите страници.`,
+          });
         }}
       >
         <h2 className="section-heading">Нова обука</h2>
@@ -102,9 +98,8 @@ export default function TrainingAdmin() {
         <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-          <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 1080p. Во базата останува само врската, не самиот фајл.</span>
+          <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 1080p. Поставувањето продолжува и ако излезете од админот.</span>
         </div>
-        {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
         <Button type="submit">Постави обука</Button>
       </form>
 
@@ -194,10 +189,16 @@ export default function TrainingAdmin() {
             event.preventDefault();
             const file = event.currentTarget.elements.video.files?.[0];
             const cover = event.currentTarget.elements.cover.files?.[0];
-            const node = event.currentTarget;
             const title = course.title.trim();
-            run(async () => {
-              const payload = {
+            queueTraining({
+              title,
+              cover,
+              file,
+              link: course.videoLink.trim(),
+              module: course.module,
+              id: course.id,
+              mode: "edit",
+              payload: {
                 title,
                 category: course.category,
                 description: course.description,
@@ -206,27 +207,13 @@ export default function TrainingAdmin() {
                 level: course.level,
                 status: course.status,
                 module: Number(course.module),
-              };
-              setUploadNote("");
-              if (cover) {
-                if (!cover.type.startsWith("image/")) throw new Error("Cover мора да биде слика.");
-                const saved = await placeFile(cover);
-                if (saved.url) payload.image = saved.url;
-                else if (saved.data) {
-                  payload.coverData = saved.data;
-                  payload.coverName = cover.name;
-                }
-              }
-              const link = course.videoLink.trim();
-              if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
-              else if (link) payload.videoUrl = link;
-              if (payload.videoUrl) payload.modulePosition = Number(course.module) === 2 ? 2 : 1;
-              await api.updateTraining(course.id, payload);
-              setCourse(null);
-              setUploadNote("");
-              node.reset();
-              setDone({ title: "Обуката е зачувана", text: `„${title}“ е ажурирана.` });
-            }, Boolean(file));
+              },
+            });
+            setCourse(null);
+            setDone({
+              title: "Зачувувањето продолжи",
+              text: `„${title}“ се зачувува во позадина. Може да ги проверите другите страници.`,
+            });
           }}
         >
           <h2 className="section-heading">Уреди „{course.title}“</h2>
@@ -256,7 +243,6 @@ export default function TrainingAdmin() {
             <input className={`${inputClass} mt-2`} placeholder="или https линк за избраниот модул" value={course.videoLink} onChange={(event) => setCourse({ ...course, videoLink: event.target.value })} />
             <span className="mt-1 block font-medium text-muted-foreground">Празно поле ја остава сегашната снимка.</span>
           </div>
-          {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>
             <Button type="button" variant="outline" onClick={() => setCourse(null)}>Откажи</Button>
