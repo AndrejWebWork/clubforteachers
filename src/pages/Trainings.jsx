@@ -28,7 +28,8 @@ function minutesLabel(duration) {
 function factLine(item) {
   const count = item.moduleCount || 2;
   const format = String(item.format || "онлајн").toLocaleLowerCase("mk");
-  return `${count} ${count === 1 ? "модул" : "модула"}, ${format}, ${minutesLabel(item.duration)}`;
+  const length = Number(item.totalSeconds) > 1 ? `${Math.round(item.totalSeconds)} сек` : minutesLabel(item.duration);
+  return `${count} ${count === 1 ? "модул" : "модула"}, ${format}, ${length}`;
 }
 
 export default function Trainings() {
@@ -116,6 +117,9 @@ export default function Trainings() {
                     <MonitorPlay className="h-4 w-4 text-primary" />
                     {factLine(item)}
                   </p>
+                  {signedIn && Number(item.totalSeconds) > 1 && (
+                    <p className="mb-4 text-sm font-black text-brand-deep">Стигнато {Math.min(Math.round(item.watchedSeconds || 0), Math.round(item.totalSeconds))} сек од {Math.round(item.totalSeconds)} сек</p>
+                  )}
                   {status === "Отворена" ? (
                     <Button asChild>
                       <Link to={signedIn ? `/obuki/${item.id}` : "/najava"}>Започни обука</Link>

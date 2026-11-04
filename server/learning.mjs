@@ -316,6 +316,11 @@ export async function listTrainings(pool, userId) {
   const { rows } = await pool.query(
     `SELECT id, title, category, description, duration, format, level, status, image, video_url, module_no,
       (SELECT COUNT(*)::int FROM training_modules m WHERE m.training_id = trainings.id) AS module_count,
+      (SELECT COALESCE(SUM(m.duration_seconds), 0) FROM training_modules m WHERE m.training_id = trainings.id AND m.duration_seconds > 1) AS total_seconds,
+      (SELECT COALESCE(SUM(LEAST(COALESCE(p.furthest_seconds, 0), m.duration_seconds)), 0)
+       FROM training_modules m
+       LEFT JOIN module_progress p ON p.module_id = m.id AND p.user_id = $1::uuid
+       WHERE m.training_id = trainings.id AND m.duration_seconds > 1) AS watched_seconds,
       CASE WHEN $1::uuid IS NULL THEN false ELSE EXISTS (
         SELECT 1 FROM certificates c WHERE c.training_id = trainings.id AND c.user_id = $1::uuid
       ) END AS certified
@@ -335,6 +340,8 @@ export async function listTrainings(pool, userId) {
     videoUrl: row.video_url,
     module: moduleNumber(row.module_no),
     moduleCount: Number(row.module_count) || 2,
+    totalSeconds: Math.round(Number(row.total_seconds) || 0),
+    watchedSeconds: Math.round(Number(row.watched_seconds) || 0),
     certified: Boolean(row.certified),
   }));
 }
