@@ -14,6 +14,7 @@ export default function TrainingAdmin() {
   const [done, setDone] = useState(null);
   const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
   const [editing, setEditing] = useState(null);
+  const [course, setCourse] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [uploadNote, setUploadNote] = useState("");
 
@@ -148,6 +149,24 @@ export default function TrainingAdmin() {
                 <Button
                   type="button"
                   variant="outline"
+                  onClick={() => setCourse({
+                    id: item.id,
+                    title: item.title || "",
+                    category: item.category || "",
+                    description: item.description || "",
+                    duration: item.duration || "",
+                    format: item.format || "",
+                    level: item.level || "Сите нивоа",
+                    status: item.status === "Затворена" ? "Затворена" : "Отворена",
+                    module: item.module || 1,
+                    videoLink: "",
+                  })}
+                >
+                  Уреди
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => run(async () => {
                     const data = await api.training(item.id);
                     setEditing(data.training);
@@ -167,6 +186,83 @@ export default function TrainingAdmin() {
         </div>
       </section>
       </div>
+
+      {course && (
+        <form
+          className="panel grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const file = event.currentTarget.elements.video.files?.[0];
+            const cover = event.currentTarget.elements.cover.files?.[0];
+            const node = event.currentTarget;
+            const title = course.title.trim();
+            run(async () => {
+              const payload = {
+                title,
+                category: course.category,
+                description: course.description,
+                duration: course.duration,
+                format: course.format,
+                level: course.level,
+                status: course.status,
+                module: Number(course.module),
+              };
+              setUploadNote("");
+              if (cover) {
+                if (!cover.type.startsWith("image/")) throw new Error("Cover мора да биде слика.");
+                const saved = await placeFile(cover);
+                if (saved.url) payload.image = saved.url;
+                else if (saved.data) {
+                  payload.coverData = saved.data;
+                  payload.coverName = cover.name;
+                }
+              }
+              const link = course.videoLink.trim();
+              if (file) payload.videoUrl = await uploadVideoFile(file, (update) => setUploadNote(uploadStatus(update)));
+              else if (link) payload.videoUrl = link;
+              if (payload.videoUrl) payload.modulePosition = Number(course.module) === 2 ? 2 : 1;
+              await api.updateTraining(course.id, payload);
+              setCourse(null);
+              setUploadNote("");
+              node.reset();
+              setDone({ title: "Обуката е зачувана", text: `„${title}“ е ажурирана.` });
+            }, Boolean(file));
+          }}
+        >
+          <h2 className="section-heading">Уреди „{course.title}“</h2>
+          <input className={inputClass} placeholder="Наслов" value={course.title} onChange={(event) => setCourse({ ...course, title: event.target.value })} required />
+          <textarea className="min-h-28 rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис" value={course.description} onChange={(event) => setCourse({ ...course, description: event.target.value })} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input className={inputClass} placeholder="Категорија" value={course.category} onChange={(event) => setCourse({ ...course, category: event.target.value })} />
+            <input className={inputClass} placeholder="Траење" value={course.duration} onChange={(event) => setCourse({ ...course, duration: event.target.value })} />
+            <input className={inputClass} placeholder="Формат" value={course.format} onChange={(event) => setCourse({ ...course, format: event.target.value })} />
+            <select className={inputClass} value={course.status} onChange={(event) => setCourse({ ...course, status: event.target.value })}>
+              <option>Отворена</option>
+              <option>Затворена</option>
+            </select>
+            <select className={inputClass} value={course.module} onChange={(event) => setCourse({ ...course, module: Number(event.target.value) })}>
+              <option value={1}>Модул 1</option>
+              <option value={2}>Модул 2</option>
+            </select>
+          </div>
+          <div className="text-sm font-bold text-brand-deep">
+            Нова cover слика
+            <FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" />
+            <span className="mt-1 block font-medium text-muted-foreground">Ако не изберете нова, останува сегашната.</span>
+          </div>
+          <div className="text-sm font-bold text-brand-deep">
+            Нова снимка
+            <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
+            <input className={`${inputClass} mt-2`} placeholder="или https линк за избраниот модул" value={course.videoLink} onChange={(event) => setCourse({ ...course, videoLink: event.target.value })} />
+            <span className="mt-1 block font-medium text-muted-foreground">Празно поле ја остава сегашната снимка.</span>
+          </div>
+          {uploadNote && <p className="text-sm font-bold text-brand-deep">{uploadNote}</p>}
+          <div className="flex gap-2">
+            <Button type="submit">Зачувај</Button>
+            <Button type="button" variant="outline" onClick={() => setCourse(null)}>Откажи</Button>
+          </div>
+        </form>
+      )}
 
       {editing && (
         <form

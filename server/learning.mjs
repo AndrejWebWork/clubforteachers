@@ -711,12 +711,25 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       if (saved.error) return { status: 400, body: { error: saved.error } };
       videoUrl = saved.url;
     }
+    if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !/^https:\/\//.test(videoUrl)) {
+      return { status: 400, body: { error: "Линкот мора да почнува со https://." } };
+    }
     const modulePosition = Number(body.modulePosition) === 2 ? 2 : Number(body.modulePosition) === 1 ? 1 : 0;
     const mainVideo = modulePosition === 2 ? "" : videoUrl;
-    await pool.query(
+    let cover = storedLink(body.image) || (body.image ? text(body.image, 2000) : "");
+    if (!cover && body.coverData) {
+      const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
+      if (saved.error) return { status: 400, body: { error: saved.error } };
+      cover = saved.url;
+    }
+    if (cover && !["webinar", "project", "resource"].includes(cover) && !cover.startsWith("/uploads/") && !cover.startsWith("/api/media/file/") && !/^https:\/\//.test(cover)) {
+      return { status: 400, body: { error: "Cover сликата не е валидна." } };
+    }
+    const updated = await pool.query(
       `UPDATE trainings SET title = $1, category = $2, description = $3, duration = $4, format = $5, level = $6, status = $7,
         video_url = CASE WHEN $8 = '' THEN video_url ELSE $8 END,
-        module_no = CASE WHEN $10 = 0 THEN module_no ELSE $10 END
+        module_no = CASE WHEN $10 = 0 THEN module_no ELSE $10 END,
+        image = CASE WHEN $11 = '' THEN image ELSE $11 END
        WHERE id = $9`,
       [
         title,
@@ -729,8 +742,10 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
         mainVideo,
         trainingMatch[1],
         body.module ? moduleNumber(body.module) : 0,
+        cover,
       ],
     );
+    if (!updated.rowCount) return { status: 404, body: { error: "Обуката не е пронајдена." } };
     if (videoUrl && modulePosition) {
       await ensureModules(pool);
       await pool.query("UPDATE training_modules SET video_url = $1 WHERE training_id = $2 AND position = $3", [videoUrl, trainingMatch[1], modulePosition]);
