@@ -1568,6 +1568,27 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   align-items: center;
   gap: 0.55rem;
 }
+.lesson-volume {
+  align-self: flex-start;
+  gap: 0.35rem;
+}
+.lesson-volume .lesson-btn {
+  height: 1.65rem;
+  width: 1.65rem;
+}
+.lesson-volume .lesson-btn svg {
+  height: 0.85rem;
+  width: 0.85rem;
+}
+.lesson-volume .lesson-track {
+  flex: 0 0 4.25rem;
+  width: 4.25rem;
+  height: 0.9rem;
+}
+.lesson-volume .lesson-head {
+  height: 0.55rem;
+  width: 0.55rem;
+}
 .lesson-track {
   position: relative;
   height: 1.4rem;
