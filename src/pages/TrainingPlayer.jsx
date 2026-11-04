@@ -13,13 +13,6 @@ function formatTime(value) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-function clockText(seen, total) {
-  const reached = Math.max(0, Math.round(Number(seen) || 0));
-  const length = Math.max(0, Math.round(Number(total) || 0));
-  if (length > 1) return `${Math.min(reached, length)} сек од ${length} сек`;
-  return `${reached} сек · траењето се вчитува`;
-}
-
 function mediaKind(url) {
   const value = driveVideoPath(url) || String(url || "");
   if (!value) return "none";
@@ -211,13 +204,6 @@ export default function TrainingPlayer() {
 
   const duration = length || active?.durationSeconds || 0;
   const quizOpen = Boolean(training.modulesReady);
-  const measured = (training.modules || []).map((item) => {
-    const seen = item.id === active?.id ? furthest : Number(item.progress?.furthest) || 0;
-    const total = item.id === active?.id ? duration || item.durationSeconds || 0 : item.durationSeconds || 0;
-    return { seen, total: total > 1 ? total : 0 };
-  });
-  const trainingReached = measured.reduce((sum, item) => sum + (item.total > 1 ? Math.min(item.seen, item.total) : 0), 0);
-  const trainingLength = measured.reduce((sum, item) => sum + item.total, 0);
   const kind = mediaKind(active?.videoUrl);
   const level = Math.min(1, Math.max(0, volume));
 
@@ -281,16 +267,6 @@ export default function TrainingPlayer() {
         ))}
       </div>
       <p className="module-note">Изгледајте го видеото на секој модул. Потоа следува тест, евалуација и сертификат.</p>
-      <div className="watch-clock" aria-live="polite">
-        <p>
-          <span>Овој модул</span>
-          <b>{clockText(furthest, duration)}</b>
-        </p>
-        <p>
-          <span>Цела обука</span>
-          <b>{clockText(trainingReached, trainingLength)}</b>
-        </p>
-      </div>
       {kind === "file" ? (
         <section className="lesson-player">
           <div className="lesson-stage">
