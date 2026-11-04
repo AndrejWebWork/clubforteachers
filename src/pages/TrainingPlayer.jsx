@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Pause, Play, RotateCcw, Volume1, Volume2, VolumeX } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
@@ -65,6 +65,12 @@ export default function TrainingPlayer() {
   const [awaitingEval, setAwaitingEval] = useState(false);
   const [evalRating, setEvalRating] = useState("5");
   const [evalComment, setEvalComment] = useState("");
+  const [volume, setVolume] = useState(() => {
+    const saved = localStorage.getItem("kn-volume");
+    const value = Number(saved);
+    return saved !== null && Number.isFinite(value) && value >= 0 && value <= 1 ? value : 1;
+  });
+  const loudRef = useRef(volume > 0 ? volume : 1);
 
   useEffect(() => {
     if (!signedIn) return;
@@ -176,6 +182,14 @@ export default function TrainingPlayer() {
     };
   }, [active?.id, active?.videoUrl]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || mediaKind(active?.videoUrl) !== "file") return;
+    const level = Math.min(1, Math.max(0, volume));
+    video.volume = level;
+    video.muted = level === 0;
+  }, [volume, active?.id, active?.videoUrl]);
+
   if (!authReady) return <section className="panel">Се вчитува...</section>;
   if (!signedIn) {
     return (
@@ -191,6 +205,20 @@ export default function TrainingPlayer() {
   const duration = length || active?.durationSeconds || 0;
   const quizOpen = Boolean(training.modulesReady);
   const kind = mediaKind(active?.videoUrl);
+  const level = Math.min(1, Math.max(0, volume));
+
+  function setLevel(next) {
+    const value = Math.min(1, Math.max(0, next));
+    if (value > 0) loudRef.current = value;
+    setVolume(value);
+    localStorage.setItem("kn-volume", String(value));
+  }
+
+  function changeVolume(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    setLevel((event.clientX - rect.left) / rect.width);
+  }
 
   function playableDone(item) {
     const seen = item.id === active?.id ? furthest : item.progress?.furthest || 0;
@@ -269,6 +297,41 @@ export default function TrainingPlayer() {
               </button>
             )}
             <div className="lesson-bar">
+              <div className="lesson-volume">
+                <button
+                  type="button"
+                  className="lesson-btn"
+                  onClick={() => setLevel(level === 0 ? loudRef.current || 1 : 0)}
+                  aria-label={level === 0 ? "Вклучи го гласот" : "Исклучи го гласот"}
+                >
+                  {level === 0 ? <VolumeX className="h-4 w-4" /> : level < 0.5 ? <Volume1 className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+                <div
+                  className="lesson-track"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label="Глас"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(level * 100)}
+                  onPointerDown={(event) => {
+                    changeVolume(event);
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) changeVolume(event);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowRight" || event.key === "ArrowUp") setLevel(level + 0.05);
+                    if (event.key === "ArrowLeft" || event.key === "ArrowDown") setLevel(level - 0.05);
+                  }}
+                >
+                  <span className="lesson-rail" />
+                  <span className="lesson-seen" style={{ width: `${level * 100}%` }} />
+                  <span className="lesson-head" style={{ left: `${level * 100}%` }} />
+                </div>
+              </div>
+              <div className="lesson-controls">
               <button type="button" className="lesson-btn" onClick={toggle} aria-label={playing ? "Пауза" : "Пушти"}>
                 {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </button>
@@ -298,6 +361,7 @@ export default function TrainingPlayer() {
                 <span className="lesson-head" style={{ left: `${duration ? (Math.min(time, furthest) / duration) * 100 : 0}%` }} />
               </div>
               <span className="lesson-time">{formatTime(time)} / {formatTime(duration)}</span>
+              </div>
             </div>
           </div>
           <p>Може да паузирате и да се вратите назад. Напред се оди само со гледање.</p>

@@ -1536,10 +1536,16 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   left: 0;
   z-index: 2;
   display: flex;
-  align-items: center;
-  gap: 0.55rem;
+  flex-direction: column;
+  gap: 0.15rem;
   padding: 0.7rem 0.8rem 0.75rem;
   background: linear-gradient(transparent, color-mix(in oklab, var(--brand-ink) 88%, transparent));
+}
+.lesson-volume,
+.lesson-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 .lesson-track {
   position: relative;
