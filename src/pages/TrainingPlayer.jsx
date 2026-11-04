@@ -3,6 +3,7 @@ import { ArrowLeft, Pause, Play, RotateCcw } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
+import { driveVideoPath } from "../driveVideo";
 import { Button, PageHeader } from "../components/ui";
 
 function formatTime(value) {
@@ -13,9 +14,9 @@ function formatTime(value) {
 }
 
 function mediaKind(url) {
-  const value = String(url || "");
+  const value = driveVideoPath(url) || String(url || "");
   if (!value) return "none";
-  if (value.startsWith("/api/media/file/") || value.startsWith("/uploads/")) return "file";
+  if (value.startsWith("/api/media/file/") || value.startsWith("/api/media/drive/") || value.startsWith("/uploads/")) return "file";
   let parsed;
   try {
     parsed = new URL(value);
@@ -24,7 +25,7 @@ function mediaKind(url) {
   }
   if (/\.(mp4|webm|ogg|mov|m4v)$/i.test(parsed.pathname)) return "file";
   const host = parsed.hostname.replace(/^www\./, "");
-  if (host === "youtu.be" || host.endsWith("youtube.com") || host.endsWith("vimeo.com") || host === "drive.google.com") return "embed";
+  if (host === "youtu.be" || host.endsWith("youtube.com") || host.endsWith("vimeo.com")) return "embed";
   return "link";
 }
 
@@ -40,8 +41,7 @@ function embedSrc(url) {
     const id = parsed.pathname.split("/").filter(Boolean).pop();
     return id ? `https://player.vimeo.com/video/${id}` : "";
   }
-  const fileId = parsed.pathname.match(/\/d\/([^/]+)/)?.[1];
-  return fileId ? `https://drive.google.com/file/d/${fileId}/preview` : "";
+  return "";
 }
 
 export default function TrainingPlayer() {
@@ -215,7 +215,7 @@ export default function TrainingPlayer() {
             <video
               key={active.id}
               ref={videoRef}
-              src={active.videoUrl}
+              src={driveVideoPath(active.videoUrl) || active.videoUrl}
               playsInline
               controls={false}
               onClick={toggle}

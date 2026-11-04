@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { placeFile, uploadStatus, uploadVideoFile } from "./media";
+import { driveVideoPath } from "./driveVideo";
 
 let jobs = [];
 const listeners = new Set();
@@ -37,7 +38,7 @@ async function attachMedia(payload, { cover, file, link, module, onProgress }) {
     }
   }
   if (file) payload.videoUrl = await uploadVideoFile(file, (update) => onProgress(uploadStatus(update)));
-  else if (link) payload.videoUrl = link;
+  else if (link) payload.videoUrl = driveVideoPath(link) || link;
   if (payload.videoUrl) payload.modulePosition = Number(module) === 2 ? 2 : 1;
 }
 

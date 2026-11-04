@@ -457,6 +457,16 @@ async function handle(method, url, req) {
     return { status: 302, redirect: watchUrl(config, key) };
   }
 
+  const driveWatch = url.match(/^\/api\/media\/drive\/([\w-]{8,})$/);
+  if ((method === "GET" || method === "HEAD") && driveWatch) {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    return {
+      status: 302,
+      redirect: `https://drive.usercontent.google.com/download?id=${encodeURIComponent(driveWatch[1])}&export=download&confirm=t`,
+    };
+  }
+
   if (method === "GET" && url === "/api/media/storage") {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;

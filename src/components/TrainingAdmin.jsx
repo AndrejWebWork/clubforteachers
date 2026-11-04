@@ -13,7 +13,7 @@ export default function TrainingAdmin() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [done, setDone] = useState(null);
-  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1, driveLink: "" });
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -61,11 +61,12 @@ export default function TrainingAdmin() {
             title,
             cover,
             file,
+            link: form.driveLink.trim(),
             module: form.module,
             payload: { ...form, title },
             mode: "create",
           });
-          setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1 });
+          setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1, driveLink: "" });
           event.currentTarget.reset();
           setDone({
             title: "Поставувањето продолжи",
@@ -98,7 +99,8 @@ export default function TrainingAdmin() {
         <div className="text-sm font-bold text-brand-deep">
           Видео на обуката
           <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-          <span className="mt-1 block font-medium text-muted-foreground">Се стеснува до 1080p. Поставувањето продолжува и ако излезете од админот.</span>
+          <input className={`${inputClass} mt-2`} placeholder="или јавен Google Drive линк до снимката" value={form.driveLink} onChange={(event) => setForm({ ...form, driveLink: event.target.value })} />
+          <span className="mt-1 block font-medium text-muted-foreground">Drive линкот се пушта овде, исто како качено видео. Фајлот мора да биде споделен со секој што го има линкот. Поставувањето продолжува и ако излезете од админот.</span>
         </div>
         <Button type="submit">Постави обука</Button>
       </form>
@@ -240,7 +242,7 @@ export default function TrainingAdmin() {
           <div className="text-sm font-bold text-brand-deep">
             Нова снимка
             <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-            <input className={`${inputClass} mt-2`} placeholder="или https линк за избраниот модул" value={course.videoLink} onChange={(event) => setCourse({ ...course, videoLink: event.target.value })} />
+            <input className={`${inputClass} mt-2`} placeholder="или јавен Google Drive линк. Се пушта овде, не на Drive." value={course.videoLink} onChange={(event) => setCourse({ ...course, videoLink: event.target.value })} />
             <span className="mt-1 block font-medium text-muted-foreground">Празно поле ја остава сегашната снимка.</span>
           </div>
           <div className="flex gap-2">

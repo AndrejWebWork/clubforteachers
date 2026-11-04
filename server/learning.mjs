@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+import { driveVideoPath } from "../src/driveVideo.js";
 import { dropStored, persistBytes } from "./mediaStore.mjs";
 import { isBlockedUpload } from "./shield.mjs";
 
@@ -236,7 +237,7 @@ async function videosReady(pool, userId, trainingId) {
      WHERE m.training_id = $2 AND m.video_url <> ''`,
     [userId, trainingId],
   );
-  const tracked = rows.filter((row) => /^(?:\/api\/media\/file\/|\/uploads\/)/.test(row.video_url) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(row.video_url));
+  const tracked = rows.filter((row) => /^(?:\/api\/media\/(?:file|drive)\/|\/uploads\/)/.test(row.video_url) || Boolean(driveVideoPath(row.video_url)) || /\.(mp4|webm|ogg|mov|m4v)(?:$|\?)/i.test(row.video_url));
   if (!rows.length) {
     const progress = await pool.query("SELECT furthest_seconds FROM training_progress WHERE user_id = $1 AND training_id = $2", [userId, trainingId]);
     return Number(progress.rows[0]?.furthest_seconds || 0) >= 1;
@@ -446,13 +447,13 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const title = text(body.title, 140);
     const description = text(body.description, 1000);
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
-    let videoUrl = text(body.videoUrl, 2000);
+    let videoUrl = driveVideoPath(body.videoUrl) || text(body.videoUrl, 2000);
     if (body.data) {
       const saved = await saveUpload(uploadDir, body.name || "obuka.mp4", body.data, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       videoUrl = saved.url;
     }
-    if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !/^https:\/\//.test(videoUrl)) {
+    if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !videoUrl.startsWith("/api/media/drive/") && !/^https:\/\//.test(videoUrl)) {
       return { status: 400, body: { error: "Линкот мора да почнува со https://." } };
     }
     let cover = storedLink(body.image) || (/^https:\/\//.test(body.image || "") ? text(body.image, 2000) : text(body.image, 40));
@@ -483,7 +484,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       ],
     );
     await ensureModules(pool);
-    if (videoUrl) await pool.query("UPDATE training_modules SET video_url = $1 WHERE training_id = $2 AND position = 1", [videoUrl, trainingId]);
+    if (videoUrl) await pool.query("UPDATE training_modules SET video_url = $1 WHERE training_id = $2 AND position = $3", [videoUrl, trainingId, Number(body.modulePosition) === 2 ? 2 : 1]);
     return { status: 201, body: { training: { id: trainingId, title, videoUrl } } };
   }
 
@@ -705,13 +706,13 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     }
     const title = text(body.title, 140);
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
-    let videoUrl = text(body.videoUrl, 2000);
+    let videoUrl = driveVideoPath(body.videoUrl) || text(body.videoUrl, 2000);
     if (body.data) {
       const saved = await saveUpload(uploadDir, body.name || "obuka.mp4", body.data, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       videoUrl = saved.url;
     }
-    if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !/^https:\/\//.test(videoUrl)) {
+    if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !videoUrl.startsWith("/api/media/drive/") && !/^https:\/\//.test(videoUrl)) {
       return { status: 400, body: { error: "Линкот мора да почнува со https://." } };
     }
     const modulePosition = Number(body.modulePosition) === 2 ? 2 : Number(body.modulePosition) === 1 ? 1 : 0;
