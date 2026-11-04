@@ -1316,8 +1316,29 @@ main .grid > * { min-width: 0; }
   from { transform: translateX(120%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+.edit-arrive {
+  scroll-margin-top: 5.5rem;
+  animation: edit-arrive 0.7s ease;
+}
+.edit-arrive:focus {
+  outline: none;
+}
+@keyframes edit-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  55% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand-yellow) 80%, transparent);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .upload-toast { animation: none; }
+  .upload-toast,
+  .edit-arrive { animation: none; }
 }
 .bell-menu { min-width: 16rem; }
 .bell-menu a small { display: block; color: var(--muted-foreground); font-size: 0.65rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }

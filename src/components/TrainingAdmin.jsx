@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { placeFile } from "../media";
 import { queueTraining, watchTrainingJobs } from "../trainingJobs";
@@ -16,11 +16,21 @@ export default function TrainingAdmin() {
   const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1, driveLink: "" });
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
+  const [editPulse, setEditPulse] = useState(0);
+  const courseRef = useRef(null);
   const [questions, setQuestions] = useState([]);
 
   function load() {
     return api.trainings().then((data) => setTrainings(data.trainings));
   }
+
+  useEffect(() => {
+    if (!course || !courseRef.current) return;
+    const node = courseRef.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    node.focus({ preventScroll: true });
+  }, [editPulse]);
 
   useEffect(() => {
     load().catch((reason) => setError(reason.message));
@@ -146,18 +156,21 @@ export default function TrainingAdmin() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setCourse({
-                    id: item.id,
-                    title: item.title || "",
-                    category: item.category || "",
-                    description: item.description || "",
-                    duration: item.duration || "",
-                    format: item.format || "",
-                    level: item.level || "Сите нивоа",
-                    status: item.status === "Затворена" ? "Затворена" : "Отворена",
-                    module: item.module || 1,
-                    videoLink: "",
-                  })}
+                  onClick={() => {
+                    setCourse({
+                      id: item.id,
+                      title: item.title || "",
+                      category: item.category || "",
+                      description: item.description || "",
+                      duration: item.duration || "",
+                      format: item.format || "",
+                      level: item.level || "Сите нивоа",
+                      status: item.status === "Затворена" ? "Затворена" : "Отворена",
+                      module: item.module || 1,
+                      videoLink: "",
+                    });
+                    setEditPulse((value) => value + 1);
+                  }}
                 >
                   Уреди
                 </Button>
@@ -186,7 +199,10 @@ export default function TrainingAdmin() {
 
       {course && (
         <form
-          className="panel grid gap-3"
+          key={`${course.id}-${editPulse}`}
+          ref={courseRef}
+          tabIndex={-1}
+          className="panel edit-arrive grid gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             const file = event.currentTarget.elements.video.files?.[0];
