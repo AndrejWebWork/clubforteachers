@@ -7,27 +7,6 @@ import { Avatar, Button, SectionHead, Signal } from "../components/ui";
 
 const tone = { Обуки: "training", Настани: "event", Работилници: "workshop", Рокови: "deadline", "Други активности": "other" };
 
-const news = [
-  { to: "/nastani", title: "Вебинар: Нови методи во наставата", date: "12 Јуни", meta: "Онлајн", image: images.webinar },
-  { to: "/resursi/aktivno-ucenje", title: "Прирачник за активно учење", date: "10 Јуни", meta: "48 стр.", image: images.resource },
-  { to: "/obuki/digitalni-alatki", title: "Дигитални алатки за активна настава", date: "9 Јуни", meta: "Онлајн", image: images.project, deadline: "30 Јуни" },
-  { to: "/oglasi", title: "Летна школа за инклузивно образование", date: "8 Јуни", meta: "Повик", image: images.webinar, deadline: "15 Јуни" },
-];
-
-const monthIndex = { јануари: 0, февруари: 1, март: 2, април: 3, мај: 4, јуни: 5, јули: 6, август: 7, септември: 8, октомври: 9, ноември: 10, декември: 11 };
-
-function deadlineLabel(text) {
-  const match = String(text).match(/(\d+)\s+(\S+)/);
-  const month = match ? monthIndex[match[2].toLocaleLowerCase("mk")] : undefined;
-  if (!match || month === undefined) return `Рок: ${text}`;
-  const due = new Date(2026, month, Number(match[1]));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.round((due - today) / 86400000);
-  if (days < 0) return `Рокот измина · ${text}`;
-  if (days === 0) return "Рок: денес";
-  return `Рок: уште ${days} ${days === 1 ? "ден" : "дена"}`;
-}
 
 const kindFromType = { PDF: "Прирачник", PPTX: "Презентација", DOCX: "Документ", LINK: "Линк", VIDEO: "Видео", WEB: "Алатка" };
 
@@ -47,6 +26,13 @@ export default function Home() {
   const givenName = signedIn ? profile.name.trim().split(/\s+/)[0] : "";
   const library = catalog.resources;
   const notices = catalog.notices;
+  const news = notices.slice(0, 4).map((item) => ({
+    to: "/oglasi",
+    title: item.title,
+    date: `${item.day} ${item.month}`,
+    meta: item.category,
+    image: images.resource,
+  }));
   const calendarItems = catalog.calendar;
   const today = calendarToday();
   const homeMonth = monthGrid(today.getFullYear(), today.getMonth());
@@ -70,11 +56,11 @@ export default function Home() {
       <section className="panel home-opportunities min-w-0">
           <SectionHead icon={<Newspaper className="h-5 w-5" />} title="Последни можности" to="/oglasi" />
           <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2 min-[1400px]:grid-cols-4">
+            {!news.length && <p className="text-sm text-muted-foreground">Сè уште нема огласи.</p>}
             {news.map((item) => (
               <Link key={item.title} to={item.to} className="news-mini">
                 <div className="relative h-44 overflow-hidden">
                   <img src={item.image} alt="" width={992} height={672} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                  {item.deadline && <span className="deadline-badge">{deadlineLabel(item.deadline)}</span>}
                 </div>
                 <div className="flex flex-1 flex-col p-3">
                   <h3 className="line-clamp-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
@@ -110,6 +96,7 @@ export default function Home() {
         <section className="panel home-resources min-w-0">
           <SectionHead icon={<FolderOpen className="h-5 w-5" />} title="Ресурси" to="/resursi" />
           <div className="divide-y">
+            {!library.length && <p className="py-3 text-sm text-muted-foreground">Сè уште нема ресурси.</p>}
             {library.slice(0, 6).map((item) => {
               const label = resourceLabel(item);
               const Icon = resourceIcon(label);
@@ -164,6 +151,7 @@ export default function Home() {
         <section className="panel min-w-0">
           <SectionHead icon={<MessageCircle className="h-5 w-5" />} title="Даскалски форум" to="/forum" />
           <div className="divide-y">
+            {!topics.length && <p className="py-3 text-sm text-muted-foreground">Сè уште нема теми.</p>}
             {topics.slice(0, 4).map((item) => (
               <Link key={item.id} to={`/forum/${item.id}`} className="flex items-center gap-3 py-2.5">
                 <Avatar name={item.author} size="sm" />

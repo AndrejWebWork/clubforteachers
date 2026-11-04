@@ -1,5 +1,3 @@
-import { events as seedEvents } from "../src/data.js";
-
 const kinds = ["Вебинар", "Работилница", "Обука", "Средба"];
 const statuses = ["Претстои", "Завршен"];
 const months = ["Јан", "Фев", "Мар", "Апр", "Мај", "Јуни", "Јули", "Авг", "Сеп", "Окт", "Ное", "Дек"];
@@ -18,15 +16,6 @@ export async function ensureEvents(pool) {
       created_at timestamptz NOT NULL DEFAULT NOW()
     )
   `);
-  const count = await pool.query("SELECT COUNT(*)::int AS count FROM club_events");
-  if (count.rows[0].count > 0) return;
-  for (const item of seedEvents) {
-    await pool.query(
-      `INSERT INTO club_events (id, title, kind, event_date, time, location, status, detail, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [item.id, item.title, item.kind, item.date, item.time, item.location, item.status, item.detail, `${item.date}T09:00:00.000Z`],
-    );
-  }
 }
 
 function mapEvent(row) {

@@ -2,7 +2,7 @@ import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import webpush from "web-push";
-import { calendarItems, noticeCategories, notices } from "../src/data.js";
+import { noticeCategories } from "../src/data.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const calendarCategories = ["Обуки", "Настани", "Работилници", "Рокови", "Други активности"];
@@ -83,37 +83,7 @@ export async function ensureFeeds(pool) {
       PRIMARY KEY (actor, kind)
     );
   `);
-  let alreadySeeded = false;
-  try {
-    const mark = await pool.query("SELECT value FROM app_meta WHERE key = 'notices_seeded'");
-    alreadySeeded = mark.rows[0]?.value === "1";
-  } catch {
-    alreadySeeded = false;
-  }
-  const noticeCount = await pool.query("SELECT COUNT(*)::int AS count FROM board_notices");
-  if (!alreadySeeded && noticeCount.rows[0].count === 0) {
-    for (const [index, item] of notices.entries()) {
-      const createdAt = new Date(Date.UTC(2025, 5, 1, 12, 0, 0) - index * 3600000).toISOString();
-      await pool.query(
-        `INSERT INTO board_notices (id, title, category, day, month, status, priority, body, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [`oglas-${index + 1}`, item.title, item.category, item.day, item.month, item.status, Boolean(item.priority), item.text, createdAt],
-      );
-    }
-  }
   await pool.query("CREATE TABLE IF NOT EXISTS app_meta (key text PRIMARY KEY, value text NOT NULL)");
-  await pool.query("INSERT INTO app_meta (key, value) VALUES ('notices_seeded', '1') ON CONFLICT (key) DO NOTHING");
-  const calendarCount = await pool.query("SELECT COUNT(*)::int AS count FROM calendar_entries");
-  if (calendarCount.rows[0].count === 0) {
-    for (const [index, item] of calendarItems.entries()) {
-      const createdAt = new Date(Date.UTC(2025, 5, 1, 12, 0, 0) - index * 3600000).toISOString();
-      await pool.query(
-        `INSERT INTO calendar_entries (id, day, entry_year, entry_month, title, category, time, location, body, created_at)
-         VALUES ($1,$2,2026,6,$3,$4,$5,$6,$7,$8)`,
-        [item.id, item.day, item.title, item.category, item.time, item.location, item.text, createdAt],
-      );
-    }
-  }
 }
 
 function mapNotice(row) {

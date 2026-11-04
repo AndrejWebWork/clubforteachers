@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { documents as seedDocuments, topics as seedTopics } from "../data";
 import { api, setToken } from "../api";
 import { enablePush } from "../push";
 
@@ -123,13 +122,13 @@ export function AppCompositor({ children }) {
   const [authReady, setAuthReady] = useState(false);
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cursor, setCursor] = useState(() => new Date(2025, 5, 1));
-  const [selected, setSelected] = useState(() => new Date(2025, 5, 12));
+  const [cursor, setCursor] = useState(() => new Date());
+  const [selected, setSelected] = useState(() => new Date());
   const [view, setView] = useState("Месец");
   const [kind, setKind] = useState("Сите");
   const [openEventId, setOpenEventId] = useState(null);
-  const [topics, setTopics] = useState(() => seedTopics.map((topic) => ({ ...topic, messages: topic.messages || [] })));
-  const [documents, setDocuments] = useState(seedDocuments);
+  const [topics, setTopics] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [joinedEvents, setJoinedEvents] = useState([]);
   const [joinedTrainings, setJoinedTrainings] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);

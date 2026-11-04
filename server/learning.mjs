@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
-import { documents as staticDocuments, resources as staticResources, trainings as staticTrainings } from "../src/data.js";
 import { dropStored, persistBytes } from "./mediaStore.mjs";
 import { isBlockedUpload } from "./shield.mjs";
 
@@ -174,17 +173,6 @@ export async function ensureLearning(pool) {
   `);
   await pool.query("ALTER TABLE trainings ADD COLUMN IF NOT EXISTS module_no integer NOT NULL DEFAULT 1");
 
-  const trainingCount = await pool.query("SELECT COUNT(*)::int AS count FROM trainings");
-  if (trainingCount.rows[0].count === 0) {
-    for (const item of staticTrainings) {
-      await pool.query(
-        `INSERT INTO trainings (id, title, category, description, duration, format, level, status, image, video_url, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'', NOW())`,
-        [item.id, item.title, item.category, item.description, item.duration, item.format, item.level, item.status, item.image],
-      );
-    }
-  }
-
   const retiredTitles = [
     "Годишна програма за работа",
     "Шаблон за подготовка на час",
@@ -194,15 +182,6 @@ export async function ensureLearning(pool) {
     "Програма за менторска поддршка",
   ];
   await pool.query("DELETE FROM library_items WHERE kind = 'document' AND title = ANY($1::text[])", [retiredTitles]);
-  for (const [index, item] of staticDocuments.entries()) {
-    const found = await pool.query("SELECT id FROM library_items WHERE kind = 'document' AND title = $1", [item.title]);
-    if (found.rowCount) continue;
-    await pool.query(
-      `INSERT INTO library_items (id, kind, title, category, type, author, detail, folder, size_label, featured, downloads, created_at)
-       VALUES ($1,'document',$2,$3,$4,'Клуб на наставници',$5,$6,$7,false,0, NOW() - ($8 || ' days')::interval)`,
-      [`dok-club-${index + 1}`, item.title, item.folder, item.type, item.body || item.title, item.folder, item.size, String(index)],
-    );
-  }
   await ensureModules(pool);
 }
 
@@ -283,27 +262,12 @@ async function bumpDownload(pool, kind, itemId, actor, recordHit, foldGuest = ""
 }
 
 export async function listResources(pool) {
-  const [counts, hidden, uploaded] = await Promise.all([
-    pool.query("SELECT item_id, downloads FROM download_counts WHERE kind = 'resource'"),
+  const [hidden, uploaded] = await Promise.all([
     pool.query("SELECT item_id FROM hidden_items WHERE kind = 'resource'"),
     pool.query("SELECT * FROM library_items WHERE kind = 'resource' ORDER BY created_at DESC"),
   ]);
-  const tally = new Map(counts.rows.map((row) => [row.item_id, row.downloads]));
   const hiddenIds = new Set(hidden.rows.map((row) => row.item_id));
   return [
-    ...staticResources.map((item) => ({
-      id: item.id,
-      title: item.title,
-      category: item.category,
-      kind: item.kind,
-      source: item.source,
-      type: item.type,
-      author: item.author,
-      detail: item.detail,
-      date: item.date,
-      fileUrl: "",
-      downloads: tally.get(item.id) || 0,
-    })),
     ...uploaded.rows.map((row) => ({
       id: row.id,
       title: row.title,

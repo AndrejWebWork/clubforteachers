@@ -5,12 +5,6 @@ import { deliverInvite, isGmailAddress } from "../inviteMail";
 import { defaultProfile, useApp } from "../compositor/AppCompositor";
 import { Avatar, Button, PageHeader } from "../components/ui";
 
-const activity = [
-  "Сподели ресурс „Методи за инклузивна настава“",
-  "Одговори на тема „Како да го мотивираме ученикот?“",
-  "Се пријави на работилницата за ИКТ",
-];
-
 function TagEditor({ label, items, onChange }) {
   const [draft, setDraft] = useState("");
   return (
@@ -267,15 +261,7 @@ export default function Profile() {
           </section>
           <section className="panel">
             <h2 className="section-heading">Последна активност</h2>
-            {activity.map((item, index) => (
-              <div key={item} className="flex gap-3 border-b py-3 last:border-0">
-                <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                <div>
-                  <b className="text-sm text-brand-deep">{item}</b>
-                  <p className="text-xs text-muted-foreground">пред {index + 1} ден</p>
-                </div>
-              </div>
-            ))}
+            <p className="text-sm text-muted-foreground">Сè уште нема активност.</p>
           </section>
         </div>
       </div>

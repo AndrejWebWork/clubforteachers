@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { deliverInvite, isGmailAddress } from "../inviteMail";
 import { enablePush, pushInstallNeeded } from "../push";
-import { nav, notices, resources, trainings, events } from "../data";
+import { nav } from "../data";
 import { pages } from "../site";
 import { useApp } from "../compositor/AppCompositor";
 import CookieConsent from "./CookieConsent";
@@ -43,7 +43,7 @@ const icons = {
 
 export default function Layout({ children }) {
   const { pathname } = useLocation();
-  const { profile, signedIn, isAdmin, authReady, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, setCookiesOpen, consent } = useApp();
+  const { profile, signedIn, isAdmin, authReady, menuOpen, setMenuOpen, startEdit, unreadCount, documents, topics, catalog, setCookiesOpen, consent } = useApp();
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -68,16 +68,16 @@ export default function Layout({ children }) {
     const q = query.trim().toLocaleLowerCase("mk");
     if (q.length < 2) return [];
     const hits = [
-      ...resources.map((item) => ({ title: item.title, to: `/resursi/${item.id}`, kind: "Ресурс" })),
-      ...trainings.map((item) => ({ title: item.title, to: "/obuki", kind: "Обука" })),
+      ...(catalog.resources || []).map((item) => ({ title: item.title, to: `/resursi/${item.id}`, kind: "Ресурс" })),
+      ...(catalog.trainings || []).map((item) => ({ title: item.title, to: `/obuki/${item.id}`, kind: "Обука" })),
       ...topics.map((item) => ({ title: item.title, to: `/forum/${item.id}`, kind: "Тема" })),
-      ...events.map((item) => ({ title: item.title, to: "/nastani", kind: "Настан" })),
+      ...(catalog.events || []).map((item) => ({ title: item.title, to: "/nastani", kind: "Настан" })),
       ...documents.map((item) => ({ title: item.title, to: "/dokumenti", kind: "Документ" })),
-      ...notices.map((item) => ({ title: item.title, to: "/oglasi", kind: "Оглас" })),
+      ...(catalog.notices || []).map((item) => ({ title: item.title, to: "/oglasi", kind: "Оглас" })),
       ...pages.filter((item) => item.path !== "/").map((item) => ({ title: item.title, to: item.path, kind: "Страница" })),
     ];
     return hits.filter((item) => item.title.toLocaleLowerCase("mk").includes(q)).slice(0, 6);
-  }, [query, topics, documents]);
+  }, [query, topics, documents, catalog]);
 
   const quiet = ["/najava", "/odjava", "/privatnost", "/uslovi", "/kolacinja"];
   if (!authReady) {

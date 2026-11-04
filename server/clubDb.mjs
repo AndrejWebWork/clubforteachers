@@ -205,7 +205,7 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
-const SCHEMA_VERSION = "2026-10-30-months";
+const SCHEMA_VERSION = "2026-11-04-clear-demo";
 
 async function setup() {
   try {
@@ -239,30 +239,6 @@ async function setup() {
   await pool.query("UPDATE users SET access = 'teacher' WHERE access IS NULL OR access = ''");
   await pool.query("UPDATE users SET membership = 'osnovno' WHERE membership IS NULL OR membership = ''");
 
-  const teacher = await pool.query("SELECT id FROM users WHERE email = 'ilija@klub.mk'");
-  const teacherId = teacher.rows[0]?.id;
-  const postCount = await pool.query("SELECT COUNT(*)::int AS count FROM posts");
-  if (postCount.rows[0].count === 0 && teacherId) {
-    const posts = [
-      ["motivacija", "Како да го мотивираме ученикот?", "Методика и пракса", "Илија Станковски", teacherId, 2, 0, "пред 2 часа", "2026-06-10T09:00:00.000Z", "Кои пристапи ви даваат најдобри резултати кога ученикот ја губи енергијата на средината од часот? Споделете конкретни примери."],
-      ["digitalni-alatki", "Дигитални алатки за наставата", "Технологија", "Марија Трајкова", teacherId, 1, 0, "пред 5 часа", "2026-06-09T12:00:00.000Z", "Кои бесплатни алатки ви се најстабилни за час од 40 минути, без долго најавување?"],
-      ["dobra-praktika", "Кратки цели на почетокот на часот", "Добра практика", "Ана Петровска", teacherId, 0, 0, "вчера", "2026-06-08T08:30:00.000Z", "Ги запишувам трите цели на таблата пред да почне активноста. Учениците сами кажуваат која цел ја исполниле."],
-    ];
-    for (const post of posts) {
-      await pool.query(
-        "INSERT INTO posts (id, title, category, author, author_id, replies, views, time_label, created_at, body) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-        post,
-      );
-    }
-    await pool.query(
-      "INSERT INTO post_messages (id, post_id, author, body, created_at) VALUES ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10), ($11,$12,$13,$14,$15)",
-      [
-        "m-1", "motivacija", "Ана Петровска", "Кај мене добро функционираат кратки избори и јасни цели за секоја активност.", "2026-06-10T10:00:00.000Z",
-        "m-2", "motivacija", "Марија Трајкова", "Групната работа со поделени улоги значително ја подобри вклученоста.", "2026-06-10T11:00:00.000Z",
-        "m-3", "digitalni-alatki", "Илија Станковски", "Една споделена табла и краток квиз на крајот се доволни за повеќето часови.", "2026-06-09T14:00:00.000Z",
-      ],
-    );
-  }
   await pool.query(
     `UPDATE users SET
        bio = replace(bio, ', книговодство', ''),
@@ -295,6 +271,13 @@ async function setup() {
        SELECT COUNT(*)::int FROM post_messages m WHERE m.post_id = posts.id
      )`,
   );
+  await pool.query("DELETE FROM post_messages WHERE id IN ('m-1','m-2','m-3') OR post_id IN ('motivacija','digitalni-alatki','dobra-praktika')");
+  await pool.query("DELETE FROM posts WHERE id IN ('motivacija','digitalni-alatki','dobra-praktika')");
+  await pool.query("DELETE FROM board_notices WHERE id IN ('oglas-1','oglas-2','oglas-3','oglas-4','oglas-5','oglas-6','oglas-7','oglas-8','oglas-9','oglas-10','oglas-11','oglas-12')");
+  await pool.query("DELETE FROM calendar_entries WHERE id IN ('c1','c2','c3','c4','c5','c6','c7','c8','c9','c10','c11','c12')");
+  await pool.query("DELETE FROM club_events WHERE id IN ('vebinar','ikt','inkluzija','mentor')");
+  await pool.query("DELETE FROM trainings WHERE id IN ('inkluzivna-ucilnica','proektno-ucenje','formativno-ocenuvanje')");
+  await pool.query("DELETE FROM library_items WHERE id IN ('dok-club-1','dok-club-2','dok-club-3') OR (kind = 'document' AND file_url = '' AND title IN ('Водич за клубот','Правила за користење на платформата','Правилник на Клубот'))");
   await pool.query("CREATE TABLE IF NOT EXISTS app_meta (key text PRIMARY KEY, value text NOT NULL)");
   await pool.query(
     "INSERT INTO app_meta (key, value) VALUES ('schema', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
