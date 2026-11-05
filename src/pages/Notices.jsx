@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "../api";
+import { noticeStamp } from "../calendar";
 import { useApp } from "../compositor/AppCompositor";
 import { RichText } from "../components/RichText";
 import { PageHeader, Signal, useAction } from "../components/ui";
@@ -20,11 +21,13 @@ export default function Notices() {
         description="Повици, обуки, конкурси, грантови и рокови — сè што бара ваша акција, на едно место."
       />
       <div className="notice-wall">
-        {notices.map((item) => (
+        {notices.map((item) => {
+          const stamp = noticeStamp(item.day, item.month);
+          return (
           <article key={item.id || item.title} className={`pin-note ${item.priority ? "priority" : ""}`}>
             <span className="push-pin" aria-hidden="true" />
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="pin-date shrink-0"><small>Рок за пријава</small><b>{item.day}</b> {item.month}</span>
+              <span className="pin-date"><small>Рок за пријава</small><b>{stamp.day} <span>{stamp.month}</span></b></span>
             </div>
             <h3 className="mt-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
             <p className="mt-1 line-clamp-3 break-words text-xs text-muted-foreground"><RichText text={item.text} /></p>
@@ -33,13 +36,14 @@ export default function Notices() {
               <button
                 type="button"
                 className="pill"
-                onClick={() => open({ title: item.title, description: `${item.text}\n\nРок: ${item.day} ${item.month}.` })}
+                onClick={() => open({ title: item.title, description: `${item.text}\n\nРок: ${stamp.day} ${stamp.month}.` })}
               >
                 Детали
               </button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     </>
   );

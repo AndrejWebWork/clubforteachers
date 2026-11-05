@@ -1046,9 +1046,19 @@ button.cal-item:hover {
 }
 .pin-note:hover { transform: translateY(-2px); }
 .pin-note.priority { background: color-mix(in oklab, var(--brand-yellow) 22%, var(--card)); border-top: 5px solid var(--brand-yellow); }
-.pin-date { display: grid; justify-items: end; color: var(--brand-urgent); font-size: 0.7rem; font-weight: 900; line-height: 1.1; }
-.pin-date small { font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase; }
-.pin-date b { font-size: 1.15rem; }
+.pin-date {
+  display: inline-grid;
+  justify-items: start;
+  gap: 0.15rem;
+  border-radius: 0.55rem;
+  background: color-mix(in oklab, var(--brand-pale) 70%, white);
+  color: var(--brand-deep);
+  line-height: 1;
+  padding: 0.4rem 0.65rem 0.45rem;
+}
+.pin-date small { color: var(--brand-urgent); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.pin-date b { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+.pin-date b span { margin-left: 0.2rem; font-size: 0.78rem; font-weight: 800; }
 .month-cell {
   border: 1px solid var(--border);
   background: var(--card);

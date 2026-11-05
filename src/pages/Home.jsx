@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Calendar, Eye, FileText, FolderOpen, Link2, MessageCircle, Newspaper, Presentation, Wrench } from "lucide-react";
-import { MONTHS, calendarToday, entryStamp, monthGrid } from "../calendar";
+import { MONTHS, calendarToday, entryStamp, monthGrid, noticeStamp } from "../calendar";
 import { images } from "../data";
 import { useApp } from "../compositor/AppCompositor";
 import { Avatar, Button, SectionHead } from "../components/ui";
@@ -31,7 +31,10 @@ export default function Home() {
     return Number.isFinite(time) ? time : 0;
   };
   const news = [
-    ...notices.map((item) => ({ to: "/oglasi", title: item.title, date: `${item.day} ${item.month}`, meta: "Оглас", at: when(item.createdAt), image: images.notice })),
+    ...notices.map((item) => {
+      const stamp = noticeStamp(item.day, item.month);
+      return { to: "/oglasi", title: item.title, date: `${stamp.day} ${stamp.month}`, meta: "Оглас", at: when(item.createdAt), image: images.notice };
+    }),
     ...(catalog.events || []).map((item) => ({ to: "/nastani", title: item.title, date: `${item.day} ${item.month}`, meta: item.kind || "Настан", at: when(item.createdAt) || Date.parse(item.date), image: images.webinar })),
     ...library.map((item) => ({ to: `/resursi/${item.id}`, title: item.title, date: item.date, meta: "Ресурс", at: when(item.createdAt), image: item.cover || images.resource })),
     ...(catalog.trainings || []).map((item) => ({ to: `/obuki/${item.id}`, title: item.title, date: item.duration, meta: "Обука", at: when(item.createdAt), image: images.project })),

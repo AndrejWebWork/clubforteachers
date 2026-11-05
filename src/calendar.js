@@ -2,6 +2,14 @@ export const CAL_START = 2026;
 export const CAL_END = 2027;
 export const MONTHS = ["Јануари", "Февруари", "Март", "Април", "Мај", "Јуни", "Јули", "Август", "Септември", "Октомври", "Ноември", "Декември"];
 
+export function noticeStamp(day, month) {
+  const raw = String(month || "").trim().toLocaleUpperCase("mk");
+  const found = MONTHS.find((name) => name.toLocaleUpperCase("mk") === raw);
+  const label = (found || String(month || "").trim() || "јуни").toLocaleLowerCase("mk");
+  const number = String(day || "").trim().replace(/^0(\d)$/, "$1");
+  return { day: number, month: label };
+}
+
 const firstDay = new Date(CAL_START, 0, 1);
 const lastDay = new Date(CAL_END, 11, 31);
 
