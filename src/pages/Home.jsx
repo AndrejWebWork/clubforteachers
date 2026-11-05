@@ -121,8 +121,8 @@ export default function Home() {
                 <Link key={item.id} to={`/resursi/${item.id}`} className="group grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 py-2.5">
                   <span className="grid h-9 w-9 place-items-center rounded-md bg-brand-soft text-primary"><Icon className="h-4 w-4" /></span>
                   <span className="min-w-0">
-                    <b className="block text-sm leading-5 text-brand-deep group-hover:text-primary">{item.title}</b>
-                    <small className="text-muted-foreground">{label} · {lead ? "LEAD" : item.author}</small>
+                    <b className="block break-words text-sm leading-5 text-brand-deep group-hover:text-primary">{item.title}</b>
+                    <small className="block break-words text-muted-foreground">{label} · {lead ? "LEAD" : item.author}</small>
                   </span>
                   <span className="shrink-0 text-right text-xs font-black leading-4 text-primary">
                     {item.downloads || 0}

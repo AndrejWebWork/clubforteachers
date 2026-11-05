@@ -221,7 +221,7 @@ export default function Layout({ children }) {
                     onClick={() => setQuery("")}
                     className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted"
                   >
-                    <span className="font-semibold text-brand-deep">{item.title}</span>
+                    <span className="min-w-0 break-words font-semibold text-brand-deep">{item.title}</span>
                     <span className="tag">{item.kind}</span>
                   </Link>
                 ))}

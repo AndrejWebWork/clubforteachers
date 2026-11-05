@@ -517,13 +517,16 @@ button, input, textarea, select { font-family: inherit; }
 @media (width <= 639px) {
   .brand-header { grid-template-columns: 1fr; align-items: start; }
   .brand-header:after { font-size: 5rem; }
-  .forum-welcome { grid-template-columns: minmax(0, 1fr); }
   .calendar-day { min-height: 2.5rem; padding: 0.25rem !important; }
+}
+@media (width < 900px) {
+  .forum-welcome { grid-template-columns: minmax(0, 1fr); }
 }
 
 .signal {
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
   box-shadow: 0 2px 6px color-mix(in oklab, var(--brand-ink) 14%, transparent);
   border-radius: 0.3rem;
   align-items: center;
@@ -887,12 +890,12 @@ button, input, textarea, select { font-family: inherit; }
 .board-date b { font-size: 1.05rem; }
 .board-date small {
   color: var(--brand-yellow);
-  max-width: 4.5rem;
+  max-width: 5.5rem;
   font-size: 0.46rem;
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1.05;
-  white-space: nowrap;
+  white-space: normal;
 }
 .cal-dot {
   border-radius: 999px;
@@ -1225,8 +1228,16 @@ button.cal-item:hover {
 .auth-card label > span { font-size: 1rem; }
 .auth-card .cta-link, .auth-card button { height: auto; min-height: 3rem; padding-inline: 1.15rem; font-size: 1rem; }
 
-img, video { max-width: 100%; }
+img, video, canvas, iframe { max-width: 100%; }
 main .grid > * { min-width: 0; }
+main :where(h1, h2, h3, h4, p, li, td, th, a, b, small, span, label, figcaption, button),
+header :where(a, span, p) {
+  overflow-wrap: anywhere;
+}
+main :where(input, textarea, select),
+header input {
+  max-width: 100%;
+}
 
 @media (width <= 767px) {
   .panel { padding: 1rem; }
@@ -1591,6 +1602,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
 .lesson-volume,
 .lesson-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.55rem;
 }
@@ -1647,7 +1659,8 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-yellow) 70%, transparent);
 }
 .lesson-time {
-  min-width: 9.5rem;
+  min-width: 0;
+  max-width: 100%;
   color: white;
   font-size: 0.75rem;
   font-weight: 800;
