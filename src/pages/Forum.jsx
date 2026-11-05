@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Eye, MessageCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, MessageCircle, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
@@ -144,7 +144,7 @@ export function Forum() {
           {isAdmin && (
             <button
               type="button"
-              className="row-delete mx-3 mb-3 self-end sm:my-3 sm:self-center"
+              className="row-delete mx-3 mb-3 inline-flex items-center gap-1.5 self-end sm:my-3 sm:self-center"
               onClick={async () => {
                 try {
                   await deleteTopic(item.id);
@@ -153,6 +153,7 @@ export function Forum() {
                 }
               }}
             >
+              <Trash2 className="h-4 w-4" />
               Отстрани
             </button>
           )}
@@ -196,9 +197,9 @@ export function Topic() {
         </div>
         <p className="my-6 leading-7">{mentionNodes(item.body, people)}</p>
         {isAdmin && (
-          <Button
+          <button
             type="button"
-            variant="outline"
+            className="row-delete inline-flex items-center gap-1.5"
             onClick={async () => {
               try {
                 await deleteTopic(item.id);
@@ -208,8 +209,9 @@ export function Topic() {
               }
             }}
           >
+            <Trash2 className="h-4 w-4" />
             Отстрани ја темата
-          </Button>
+          </button>
         )}
         <div className="border-t pt-5">
           <h2 className="font-bold text-brand-deep">Одговори од заедницата</h2>
