@@ -31,11 +31,11 @@ export default function Home() {
     return Number.isFinite(time) ? time : 0;
   };
   const news = [
-    ...notices.map((item) => ({ to: "/oglasi", title: item.title, date: `${item.day} ${item.month}`, meta: "Оглас", at: when(item.createdAt), image: images.resource })),
-    ...(catalog.events || []).map((item) => ({ to: "/nastani", title: item.title, date: `${item.day} ${item.month}`, meta: item.kind || "Настан", at: when(item.createdAt) || Date.parse(item.date), image: images.resource })),
+    ...notices.map((item) => ({ to: "/oglasi", title: item.title, date: `${item.day} ${item.month}`, meta: "Оглас", at: when(item.createdAt), image: images.notice })),
+    ...(catalog.events || []).map((item) => ({ to: "/nastani", title: item.title, date: `${item.day} ${item.month}`, meta: item.kind || "Настан", at: when(item.createdAt) || Date.parse(item.date), image: images.webinar })),
     ...library.map((item) => ({ to: `/resursi/${item.id}`, title: item.title, date: item.date, meta: "Ресурс", at: when(item.createdAt), image: item.cover || images.resource })),
-    ...(catalog.trainings || []).map((item) => ({ to: `/obuki/${item.id}`, title: item.title, date: item.duration, meta: "Обука", at: when(item.createdAt), image: images.resource })),
-    ...topics.map((item) => ({ to: `/forum/${item.id}`, title: item.title, date: item.time, meta: "Форум", at: when(item.createdAt), image: images.resource })),
+    ...(catalog.trainings || []).map((item) => ({ to: `/obuki/${item.id}`, title: item.title, date: item.duration, meta: "Обука", at: when(item.createdAt), image: images.project })),
+    ...topics.map((item) => ({ to: `/forum/${item.id}`, title: item.title, date: item.time, meta: "Форум", at: when(item.createdAt), image: images.forum })),
   ].sort((left, right) => right.at - left.at).slice(0, 4);
   const calendarItems = catalog.calendar;
   const today = calendarToday();

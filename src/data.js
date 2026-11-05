@@ -3,6 +3,8 @@ export const images = {
   webinar: "/images/news-webinar-BCE9OWIC.jpg",
   resource: "/images/news-resource-Dtx0iGs0.jpg",
   project: "/images/news-project-C-iZN8kv.jpg",
+  forum: "/images/news-forum.png",
+  notice: "/images/news-notice.png",
 };
 
 export const nav = [
