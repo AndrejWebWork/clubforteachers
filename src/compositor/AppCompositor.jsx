@@ -180,6 +180,9 @@ export function AppCompositor({ children }) {
             unlocked: Boolean(data.unlocked),
             members: data.members || [],
           });
+          api.myEvents().then((mine) => {
+            if (!cancel) setJoinedEvents(mine.ids || []);
+          }).catch(() => {});
         }
       } catch {
         setToken(null);
@@ -365,7 +368,10 @@ export function AppCompositor({ children }) {
         ]);
       },
       toggleEvent(id) {
-        setJoinedEvents((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+        if (!signedIn) return;
+        api.joinEvent(id).then((data) => {
+          setJoinedEvents((current) => (data.joined ? [...new Set([...current, id])] : current.filter((item) => item !== id)));
+        }).catch(() => {});
       },
       toggleTraining(id) {
         setJoinedTrainings((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));

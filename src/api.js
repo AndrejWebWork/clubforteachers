@@ -78,6 +78,13 @@ export const api = {
     return request("/api/accounts/import", { method: "POST", body: { name: file.name, text: await file.text() } });
   },
   setRole: (id, role) => request(`/api/accounts/${id}`, { method: "PATCH", body: { role } }),
+  setProfile: (id, profile) => request(`/api/accounts/${id}`, { method: "PATCH", body: { profile } }),
+  setPassword: async (id, password) => {
+    const passwordHash = await sealPassword(password);
+    return request(`/api/accounts/${id}`, { method: "PATCH", body: { passwordHash } });
+  },
+  requestReset: (email) => request("/api/password-reset", { method: "POST", body: { email } }),
+  passwordResets: () => request("/api/password-resets"),
   setMembership: (id, membership) => request(`/api/accounts/${id}`, { method: "PATCH", body: { membership } }),
   masterclasses: () => request("/api/masterclasses"),
   addMasterclass: (body) => request("/api/masterclasses", { method: "POST", body }),
@@ -106,9 +113,13 @@ export const api = {
   deleteTraining: (id) => request(`/api/trainings/${id}`, { method: "DELETE" }),
   updateTraining: (id, body) => request(`/api/trainings/${id}`, { method: "PATCH", body }),
   saveQuiz: (id, questions) => request(`/api/trainings/${id}/quiz`, { method: "PUT", body: { questions } }),
-  submitQuiz: (id, answers) => request(`/api/trainings/${id}/quiz`, { method: "POST", body: { answers } }),
+  submitQuiz: (id, answers, module) => request(`/api/trainings/${id}/quiz`, { method: "POST", body: { answers, module } }),
+  trainingResults: (id) => request(`/api/trainings/${id}/results`),
   submitEvaluation: (id, body) => request(`/api/trainings/${id}/evaluation`, { method: "POST", body }),
   saveProgress: (id, body) => request(`/api/trainings/${id}/progress`, { method: "POST", body }),
   certificate: (id) => request(`/api/trainings/${id}/certificate`),
   invite: (email) => request("/api/invitations", { method: "POST", body: { email } }),
+  joinEvent: (id) => request(`/api/events/${id}/join`, { method: "POST", body: {} }),
+  myEvents: () => request("/api/events/mine"),
+  eventSignups: () => request("/api/events/signups"),
 };

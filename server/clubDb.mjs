@@ -205,7 +205,7 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
-const SCHEMA_VERSION = "2026-11-04-clear-demo";
+const SCHEMA_VERSION = "2026-11-05-comments";
 
 async function setup() {
   try {
@@ -454,6 +454,10 @@ async function handle(method, url, req) {
     const key = fileKey(mediaFile[1]);
     const config = mediaConfig(root);
     if (!key || !config.remote) return { status: 404, body: { error: "Видеото не е пронајдено." } };
+    if ((req.url || "").includes("download=1")) {
+      const filename = key.split("/").pop() || "resurs";
+      return { attachment: { href: watchUrl(config, key, false), filename } };
+    }
     return { status: 302, redirect: watchUrl(config, key) };
   }
 
@@ -555,6 +559,37 @@ async function handle(method, url, req) {
   if (method === "GET" && url === "/api/events") {
     const { listEvents } = await import("./events.mjs");
     return { status: 200, body: { events: await listEvents(pool) } };
+  }
+
+  if (method === "GET" && url === "/api/events/signups") {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const { listSignups } = await import("./events.mjs");
+    return { status: 200, body: { signups: await listSignups(pool) } };
+  }
+
+  if (method === "GET" && url === "/api/events/mine") {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const { mySignups } = await import("./events.mjs");
+    return { status: 200, body: { ids: await mySignups(pool, auth.user.id) } };
+  }
+
+  if (method === "GET" && url === "/api/password-resets") {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
+      id text PRIMARY KEY,
+      email text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT NOW(),
+      done boolean NOT NULL DEFAULT false
+    )`);
+    const { rows } = await pool.query(
+      `SELECT r.id, r.email, r.created_at, u.name
+       FROM password_resets r LEFT JOIN users u ON lower(u.email) = lower(r.email)
+       WHERE r.done = false ORDER BY r.created_at DESC`,
+    );
+    return { status: 200, body: { requests: rows.map((row) => ({ id: row.id, email: row.email, name: row.name || "", createdAt: row.created_at })) } };
   }
 
   if (method === "GET" && (url === "/api/notices" || url === "/api/calendar" || url === "/api/push/key")) {
@@ -701,10 +736,9 @@ async function handle(method, url, req) {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
     const title = text(body.title, 140);
-    const category = text(body.category, 80);
+    const category = text(body.category, 80) || "Разговор";
     const message = text(body.body, 4000);
     if (!title || !message) return { status: 400, body: { error: "Насловот и текстот се задолжителни." } };
-    if (!categories.includes(category)) return { status: 400, body: { error: "Изберете категорија од списокот." } };
     const postId = id("tema");
     const createdAt = new Date().toISOString();
     await pool.query(
@@ -829,6 +863,28 @@ async function handle(method, url, req) {
     const found = await pool.query("SELECT * FROM users WHERE id = $1", [accountMatch[1]]);
     if (!found.rows[0]) return { status: 404, body: { error: "Сметката не е пронајдена." } };
     const user = mapUser(found.rows[0]);
+    if (body.passwordHash && /^sha256:[a-f0-9]{32}:[a-f0-9]{64}$/i.test(body.passwordHash)) {
+      await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [body.passwordHash, user.id]);
+      await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
+        id text PRIMARY KEY, email text NOT NULL, created_at timestamptz NOT NULL DEFAULT NOW(), done boolean NOT NULL DEFAULT false
+      )`);
+      await pool.query("UPDATE password_resets SET done = true WHERE lower(email) = lower($1)", [user.email]);
+      if (!body.role && !body.profile && !body.membership) {
+        const fresh = await pool.query("SELECT * FROM users WHERE id = $1", [user.id]);
+        return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
+      }
+    }
+    const profiles = ["Наставник", "Педагог", "Психолог", "Специјален едукатор", "Дефектолог"];
+    if (body.profile === "Раководител" || profiles.includes(body.profile)) {
+      const nextAccess = body.profile === "Раководител" ? "admin" : "teacher";
+      if (user.role === "admin" && nextAccess !== "admin") {
+        const admins = await pool.query("SELECT COUNT(*)::int AS count FROM users WHERE access = 'admin'");
+        if (admins.rows[0].count < 2) return { status: 400, body: { error: "Мора да остане барем еден раководител." } };
+      }
+      await pool.query("UPDATE users SET access = $1, role = $2 WHERE id = $3", [nextAccess, body.profile, user.id]);
+      const fresh = await pool.query("SELECT * FROM users WHERE id = $1", [user.id]);
+      return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
+    }
     if (body.membership === "osnovno" || body.membership === "polno") {
       await pool.query("UPDATE users SET membership = $1 WHERE id = $2", [body.membership, user.id]);
       if (!body.role) {
@@ -956,7 +1012,10 @@ async function handle(method, url, req) {
     const attachmentIds = Array.isArray(body.attachmentIds) ? body.attachmentIds.map(String) : [];
     if (!subject || !message) return { status: 400, body: { error: "Насловот и пораката се задолжителни." } };
     let recipients = [];
-    if (body.allTeachers) {
+    if (body.audience === "osnovno" || body.audience === "polno") {
+      const { rows } = await pool.query("SELECT name, email FROM users WHERE access = 'teacher' AND membership = $1", [body.audience]);
+      recipients = rows;
+    } else if (body.allTeachers || body.audience === "all") {
       const { rows } = await pool.query("SELECT name, email FROM users WHERE access = 'teacher'");
       recipients = rows;
     } else {
@@ -1003,6 +1062,28 @@ async function handle(method, url, req) {
     });
     if (result.error) return { status: 400, body: { error: result.error } };
     return { status: 201, body: result };
+  }
+
+  if (method === "POST" && url === "/api/password-reset") {
+    const email = text(body.email, 120).toLowerCase();
+    await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
+      id text PRIMARY KEY, email text NOT NULL, created_at timestamptz NOT NULL DEFAULT NOW(), done boolean NOT NULL DEFAULT false
+    )`);
+    if (email.includes("@")) {
+      const found = await pool.query("SELECT id FROM users WHERE lower(email) = $1", [email]);
+      if (found.rows[0]) await pool.query("INSERT INTO password_resets (id, email) VALUES ($1,$2)", [id("reset"), email]);
+    }
+    return { status: 200, body: { ok: true, message: "Барањето е примено. Раководителот ќе постави нова лозинка и ќе ви ја каже." } };
+  }
+
+  const eventJoin = url.match(/^\/api\/events\/([^/]+)\/join$/);
+  if (method === "POST" && eventJoin) {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const { toggleSignup } = await import("./events.mjs");
+    const result = await toggleSignup(pool, decodeURIComponent(eventJoin[1]), auth.user);
+    if (result.error) return { status: 404, body: { error: result.error } };
+    return { status: 200, body: result };
   }
 
   const eventMatch = url.match(/^\/api\/events\/([^/]+)$/);
@@ -1163,6 +1244,25 @@ export function clubApiMiddleware() {
       const result = await handle(req.method || "GET", url, req);
       if (result.driveId) {
         await pipeDriveVideo(req, res, result.driveId);
+        return;
+      }
+      if (result.attachment) {
+        const upstream = await fetch(result.attachment.href);
+        if (!upstream.ok || !upstream.body) {
+          res.statusCode = 502;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "Ресурсот не можеше да се преземе." }));
+          return;
+        }
+        const name = String(result.attachment.filename || "resurs").replace(/[^\w.\- ()\u0400-\u04FF]+/g, "") || "resurs";
+        res.statusCode = 200;
+        res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+        res.setHeader("Cache-Control", "private, no-store");
+        const length = upstream.headers.get("content-length");
+        if (length) res.setHeader("Content-Length", length);
+        const { Readable } = await import("node:stream");
+        Readable.fromWeb(upstream.body).pipe(res);
         return;
       }
       if (result.redirect) {

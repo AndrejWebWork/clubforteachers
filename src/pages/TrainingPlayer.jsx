@@ -64,6 +64,8 @@ export default function TrainingPlayer() {
   const [activeId, setActiveId] = useState("");
   const [awaitingEval, setAwaitingEval] = useState(false);
   const [evalRating, setEvalRating] = useState("5");
+  const [evalUseful, setEvalUseful] = useState("Да");
+  const [evalRecommend, setEvalRecommend] = useState("Да");
   const [evalComment, setEvalComment] = useState("");
   const [volume, setVolume] = useState(() => {
     const saved = localStorage.getItem("kn-volume");
@@ -128,6 +130,7 @@ export default function TrainingPlayer() {
       duration: known,
     }).then((data) => {
       rememberProgress(data, module.id, position, known);
+      if (data.moduleReady) api.training(current.id).then((fresh) => setTraining(fresh.training)).catch(() => {});
       if (video && video.currentTime > data.furthest + 1.5) video.currentTime = data.furthest;
     }).catch(() => {});
   }
@@ -137,6 +140,9 @@ export default function TrainingPlayer() {
     if (!video || !active?.videoUrl) return;
     const place = () => {
       if (Number.isFinite(video.duration)) setLength(video.duration);
+      const level = Math.min(1, Math.max(0, Number(localStorage.getItem("kn-volume") ?? 1)));
+      video.volume = level;
+      video.muted = level === 0;
       const start = Math.min(active.progress.position || 0, furthestRef.current);
       if (Math.abs(video.currentTime - start) > 0.4) video.currentTime = start;
     };
@@ -204,7 +210,11 @@ export default function TrainingPlayer() {
   if (!training) return <section className="panel">Се вчитува обуката...</section>;
 
   const duration = length || active?.durationSeconds || 0;
-  const quizOpen = Boolean(training.modulesReady);
+  const passedModules = training.passedModules || [];
+  const moduleNo = active?.position === 2 ? 2 : 1;
+  const moduleQuestions = (training.questions || []).filter((question) => (question.module || 1) === moduleNo);
+  const thisDone = Boolean(active) && (!active.videoUrl || (mediaKind(active.videoUrl) === "file" && playableDone(active)));
+  const quizOpen = thisDone && !passedModules.includes(moduleNo) && (moduleNo === 1 || passedModules.includes(1)) && !training.certified;
   const kind = mediaKind(active?.videoUrl);
   const level = Math.min(1, Math.max(0, volume));
 
@@ -254,6 +264,7 @@ export default function TrainingPlayer() {
             type="button"
             className={`sort-chip ${active?.id === item.id ? "active" : ""}`}
             onClick={() => {
+              if (item.position === 2 && !passedModules.includes(1)) return;
               setActiveId(item.id);
               furthestRef.current = item.progress.furthest;
               setFurthest(item.progress.furthest);
@@ -261,13 +272,16 @@ export default function TrainingPlayer() {
               setLength(item.durationSeconds || 0);
               setPlaying(false);
               lastTick.current = 0;
+              setAnswers([]);
+              setAwaitingEval(false);
             }}
           >
-            {item.title}{item.videoUrl ? "" : " · без видео"}{playableDone(item) ? " · изгледан" : ""}
+            {item.title}{item.position === 2 && !passedModules.includes(1) ? " · по тестот на модул 1" : ""}{item.videoUrl ? "" : " · без видео"}{playableDone(item) ? " · изгледан" : ""}{passedModules.includes(item.position) ? " · положен" : ""}
           </button>
         ))}
       </div>
-      <p className="module-note">Изгледајте го видеото на секој модул. Потоа следува тест, евалуација и сертификат.</p>
+      {active?.blurb && <p className="mb-3 text-sm text-muted-foreground">{active.blurb}</p>}
+      <p className="module-note">Модул 1, па тест со најмалку 80%. Потоа модул 2 и негов тест. По тоа следува евалуација и сертификат.</p>
       {kind === "file" ? (
         <section className="lesson-player">
           <div className="lesson-stage">
@@ -278,7 +292,14 @@ export default function TrainingPlayer() {
               playsInline
               controls={false}
               onClick={toggle}
-              onPlay={() => setPlaying(true)}
+              onPlay={() => {
+                const node = videoRef.current;
+                if (node && level > 0) {
+                  node.muted = false;
+                  node.volume = level;
+                }
+                setPlaying(true);
+              }}
               onPause={() => setPlaying(false)}
               onEnded={() => {
                 const node = videoRef.current;
@@ -399,14 +420,18 @@ export default function TrainingPlayer() {
         <h2 className="section-heading">Тест</h2>
         {!quizOpen && !awaitingEval && (
           <p className="text-sm text-muted-foreground">
-            {training.modules?.some((item) => mediaKind(item.videoUrl) === "file")
-              ? "Тестот се појавува откако секој модул ќе биде изгледан до крај."
-              : training.modules?.some((item) => item.videoUrl)
-                ? "Овие снимки се надворешни линкови. Платформата не може да измери дали се изгледани до крај, па тестот се отвора кога модулот има видео што се пушта тука."
-                : "Тестот се појавува откако ќе продолжите од модулите."}
+            {moduleNo === 2 && !passedModules.includes(1)
+              ? "Модул 2 се отвора откако ќе го положите тестот на модул 1."
+              : passedModules.includes(moduleNo)
+                ? "Овој модул е положен."
+                : mediaKind(active?.videoUrl) === "file"
+                  ? "Тестот на овој модул се појавува откако видеото ќе биде изгледано до крај."
+                  : active?.videoUrl
+                    ? "Оваа снимка е надворешен линк. Тестот се отвора само ако видеото се пушта тука."
+                    : "Тестот се појавува откако ќе го завршите модулот."}
           </p>
         )}
-        {quizOpen && !awaitingEval && training.questions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест.</p>}
+        {quizOpen && !awaitingEval && moduleQuestions.length === 0 && <p className="text-sm text-muted-foreground">Раководителот сè уште нема поставено тест за овој модул.</p>}
         {awaitingEval && (
           <form
             className="grid gap-3"
@@ -414,18 +439,30 @@ export default function TrainingPlayer() {
               event.preventDefault();
               setQuizNote("");
               try {
-                await api.submitEvaluation(training.id, { rating: Number(evalRating), comment: evalComment });
+                await api.submitEvaluation(training.id, { rating: Number(evalRating), useful: evalUseful, recommend: evalRecommend, comment: evalComment });
                 navigate(`/obuki/${training.id}/sertifikat`);
               } catch (reason) {
                 setQuizNote(reason.message);
               }
             }}
           >
-            <p className="text-sm font-bold text-brand-deep">Тестот е точен. Пополнете ја евалуацијата за да се издаде сертификатот.</p>
+            <p className="text-sm font-bold text-brand-deep">Двата теста се положени. Пополнете ја евалуацијата за да се издаде сертификатот.</p>
             <label className="text-sm font-bold text-brand-deep">
               Оценка од 1 до 5
               <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalRating} onChange={(event) => setEvalRating(event.target.value)}>
                 {["5", "4", "3", "2", "1"].map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="text-sm font-bold text-brand-deep">
+              Дали обуката ви беше корисна?
+              <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalUseful} onChange={(event) => setEvalUseful(event.target.value)}>
+                {["Да", "Делумно", "Не"].map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="text-sm font-bold text-brand-deep">
+              Би ја препорачале?
+              <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalRecommend} onChange={(event) => setEvalRecommend(event.target.value)}>
+                {["Да", "Не"].map((value) => <option key={value}>{value}</option>)}
               </select>
             </label>
             <textarea required rows={4} className="rounded-md border bg-card px-3 py-2 text-sm" placeholder="Што беше корисно во обуката?" value={evalComment} onChange={(event) => setEvalComment(event.target.value)} />
@@ -433,16 +470,28 @@ export default function TrainingPlayer() {
             <Button type="submit">Испрати евалуација</Button>
           </form>
         )}
-        {quizOpen && !awaitingEval && training.questions.length > 0 && (
+        {quizOpen && !awaitingEval && moduleQuestions.length > 0 && (
           <form
-            className="grid gap-5"
+            className="quiz-lock grid gap-5"
+            onCopy={(event) => event.preventDefault()}
+            onCut={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
             onSubmit={async (event) => {
               event.preventDefault();
               setQuizNote("");
               try {
-                const result = await api.submitQuiz(training.id, answers);
+                const result = await api.submitQuiz(training.id, answers, moduleNo);
                 if (!result.passed) {
-                  setQuizNote("Има неточен одговор. Проверете ги прашањата и обидете се повторно.");
+                  setQuizNote(`Потребни се 80%. Овој обид е ${result.score || 0}%.`);
+                  return;
+                }
+                if (result.nextModule) {
+                  setQuizNote("Модул 1 е положен. Продолжете со модул 2.");
+                  const fresh = await api.training(training.id);
+                  setTraining(fresh.training);
+                  const next = fresh.training.modules?.find((item) => item.position === 2);
+                  if (next) setActiveId(next.id);
+                  setAnswers([]);
                   return;
                 }
                 if (result.needsEvaluation) {
@@ -455,7 +504,7 @@ export default function TrainingPlayer() {
               }
             }}
           >
-            {training.questions.map((question, index) => (
+            {moduleQuestions.map((question, index) => (
               <fieldset key={question.id} className="grid gap-2">
                 <legend className="font-bold text-brand-deep">{index + 1}. {question.prompt}</legend>
                 {question.options.map((option, optionIndex) => (
@@ -464,7 +513,11 @@ export default function TrainingPlayer() {
                       type="radio"
                       name={`q-${question.id}`}
                       checked={answers[index] === optionIndex}
-                      onChange={() => setAnswers((current) => current.map((value, item) => (item === index ? optionIndex : value)))}
+                      onChange={() => setAnswers((current) => {
+                        const next = current.length ? [...current] : moduleQuestions.map(() => -1);
+                        next[index] = optionIndex;
+                        return next;
+                      })}
                       required
                     />
                     {option}

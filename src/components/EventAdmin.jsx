@@ -11,9 +11,13 @@ export default function EventAdmin() {
   const [error, setError] = useState("");
   const [form, setForm] = useState(empty);
   const [done, setDone] = useState(null);
+  const [signups, setSignups] = useState([]);
 
   function load() {
-    return api.events().then((data) => setItems(data.events));
+    return Promise.all([api.events(), api.eventSignups()]).then(([data, people]) => {
+      setItems(data.events);
+      setSignups(people.signups || []);
+    });
   }
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export default function EventAdmin() {
               setForm(empty);
               setDone({
                 title: "Настанот е додаден",
-                text: `„${title}“ е успешно поставен и се гледа на страницата Настани.`,
+                text: `„${title}“ е на Настани и на календарот.`,
               });
               return load();
             })
@@ -42,7 +46,7 @@ export default function EventAdmin() {
         }}
       >
         <h2 className="section-heading">Нов настан</h2>
-        <p className="text-sm text-muted-foreground">Се појавува на страницата Настани. Претстојните може да се пријават, а завршените остануваат во списокот.</p>
+        <p className="text-sm text-muted-foreground">Се појавува на Настани и на календарот. Пријавените се гледаат под настанот.</p>
         <input className={inputClass} placeholder="Наслов" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
         <select className={inputClass} value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
           {kinds.map((item) => <option key={item}>{item}</option>)}
@@ -68,6 +72,7 @@ export default function EventAdmin() {
               <div>
                 <b className="text-brand-deep">{item.title}</b>
                 <p className="text-sm text-muted-foreground">{item.day} {item.month} · {item.time} · {item.kind} · {item.status}</p>
+                <p className="text-sm text-brand-deep">{signups.filter((person) => person.eventId === item.id).map((person) => person.name).join(", ") || "Нема пријавени."}</p>
               </div>
               <button type="button" className="text-xs font-bold text-muted-foreground" onClick={() => api.deleteEvent(item.id).then(load).catch((reason) => setError(reason.message))}>Избриши</button>
             </div>

@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Calendar, Eye, FileText, FolderOpen, Link2, Megaphone, MessageCircle, Newspaper, Presentation, Wrench } from "lucide-react";
+import { ArrowRight, Calendar, Eye, FileText, FolderOpen, Link2, MessageCircle, Newspaper, Presentation, Wrench } from "lucide-react";
 import { MONTHS, calendarToday, entryStamp, monthGrid } from "../calendar";
 import { images } from "../data";
 import { useApp } from "../compositor/AppCompositor";
-import { Avatar, Button, SectionHead, Signal } from "../components/ui";
+import { Avatar, Button, SectionHead } from "../components/ui";
 
 const tone = { Обуки: "training", Настани: "event", Работилници: "workshop", Рокови: "deadline", "Други активности": "other" };
 
@@ -26,13 +26,17 @@ export default function Home() {
   const givenName = signedIn ? profile.name.trim().split(/\s+/)[0] : "";
   const library = catalog.resources;
   const notices = catalog.notices;
-  const news = notices.slice(0, 4).map((item) => ({
-    to: "/oglasi",
-    title: item.title,
-    date: `${item.day} ${item.month}`,
-    meta: item.category,
-    image: images.resource,
-  }));
+  const when = (value) => {
+    const time = Date.parse(value || "");
+    return Number.isFinite(time) ? time : 0;
+  };
+  const news = [
+    ...notices.map((item) => ({ to: "/oglasi", title: item.title, date: `${item.day} ${item.month}`, meta: "Оглас", at: when(item.createdAt), image: images.resource })),
+    ...(catalog.events || []).map((item) => ({ to: "/nastani", title: item.title, date: `${item.day} ${item.month}`, meta: item.kind || "Настан", at: when(item.createdAt) || Date.parse(item.date), image: images.resource })),
+    ...library.map((item) => ({ to: `/resursi/${item.id}`, title: item.title, date: item.date, meta: "Ресурс", at: when(item.createdAt), image: item.cover || images.resource })),
+    ...(catalog.trainings || []).map((item) => ({ to: `/obuki/${item.id}`, title: item.title, date: item.duration, meta: "Обука", at: when(item.createdAt), image: images.resource })),
+    ...topics.map((item) => ({ to: `/forum/${item.id}`, title: item.title, date: item.time, meta: "Форум", at: when(item.createdAt), image: images.resource })),
+  ].sort((left, right) => right.at - left.at).slice(0, 4);
   const calendarItems = catalog.calendar;
   const today = calendarToday();
   const homeMonth = monthGrid(today.getFullYear(), today.getMonth());
@@ -58,7 +62,7 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2 min-[1400px]:grid-cols-4">
             {!news.length && <p className="text-sm text-muted-foreground">Сè уште нема огласи.</p>}
             {news.map((item) => (
-              <Link key={item.title} to={item.to} className="news-mini">
+              <Link key={`${item.to}-${item.title}`} to={item.to} className="news-mini">
                 <div className="relative h-44 overflow-hidden">
                   <img src={item.image} alt="" width={992} height={672} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                 </div>
@@ -72,52 +76,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-
-      <div className="grid gap-5 min-[1100px]:grid-cols-2">
-        <section className="panel home-board min-w-0">
-          <SectionHead icon={<Megaphone className="h-5 w-5" />} title="Огласна табла" to="/oglasi" />
-          <div className="space-y-2">
-            {notices.slice(0, 5).map((item) => (
-              <Link key={item.title} to="/oglasi" className={`board-row group ${item.priority ? "priority" : ""}`}>
-                <span className="board-date"><b>{item.day}</b><small>{item.month}</small></span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-1.5">
-                    <span className="type-chip">{item.category}</span>
-                    <Signal label={item.status} />
-                  </span>
-                  <b className="mt-1 block text-sm leading-5 text-brand-deep">{item.title}</b>
-                </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel home-resources min-w-0">
-          <SectionHead icon={<FolderOpen className="h-5 w-5" />} title="Ресурси" to="/resursi" />
-          <div className="divide-y">
-            {!library.length && <p className="py-3 text-sm text-muted-foreground">Сè уште нема ресурси.</p>}
-            {library.slice(0, 6).map((item) => {
-              const label = resourceLabel(item);
-              const Icon = resourceIcon(label);
-              const lead = item.source === "LEAD" || item.author === "LEAD тим";
-              return (
-                <Link key={item.id} to={`/resursi/${item.id}`} className="group grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 py-2.5">
-                  <span className="grid h-9 w-9 place-items-center rounded-md bg-brand-soft text-primary"><Icon className="h-4 w-4" /></span>
-                  <span className="min-w-0">
-                    <b className="block text-sm leading-5 text-brand-deep group-hover:text-primary">{item.title}</b>
-                    <small className="text-muted-foreground">{label} · {lead ? "LEAD" : item.author}</small>
-                  </span>
-                  <span className="shrink-0 text-right text-xs font-black leading-4 text-primary">
-                    {item.downloads || 0}
-                    <small className="block font-bold text-muted-foreground">симнувања</small>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      </div>
 
       <div className="grid gap-5 min-[1100px]:grid-cols-2">
         <section className="panel min-w-0">
@@ -148,7 +106,33 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel min-w-0">
+        <section className="panel home-resources min-w-0">
+          <SectionHead icon={<FolderOpen className="h-5 w-5" />} title="Ресурси" to="/resursi" />
+          <div className="divide-y">
+            {!library.length && <p className="py-3 text-sm text-muted-foreground">Сè уште нема ресурси.</p>}
+            {library.slice(0, 6).map((item) => {
+              const label = resourceLabel(item);
+              const Icon = resourceIcon(label);
+              const lead = item.source === "LEAD" || item.author === "LEAD тим";
+              return (
+                <Link key={item.id} to={`/resursi/${item.id}`} className="group grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 py-2.5">
+                  <span className="grid h-9 w-9 place-items-center rounded-md bg-brand-soft text-primary"><Icon className="h-4 w-4" /></span>
+                  <span className="min-w-0">
+                    <b className="block text-sm leading-5 text-brand-deep group-hover:text-primary">{item.title}</b>
+                    <small className="text-muted-foreground">{label} · {lead ? "LEAD" : item.author}</small>
+                  </span>
+                  <span className="shrink-0 text-right text-xs font-black leading-4 text-primary">
+                    {item.downloads || 0}
+                    <small className="block font-bold text-muted-foreground">симнувања</small>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      <section className="panel min-w-0">
           <SectionHead icon={<MessageCircle className="h-5 w-5" />} title="Даскалски форум" to="/forum" />
           <div className="divide-y">
             {!topics.length && <p className="py-3 text-sm text-muted-foreground">Сè уште нема теми.</p>}
@@ -160,7 +144,7 @@ export default function Home() {
                     <span className="line-clamp-2 sm:truncate">{item.title}</span>
                     {item.isNew && <i className="unread-dot" aria-label="Ново" />}
                   </b>
-                  <small className="text-muted-foreground">{item.category} · {item.time}</small>
+                  <small className="text-muted-foreground">{item.time}</small>
                 </span>
                 <span className="flex shrink-0 items-center gap-3 text-xs font-bold text-primary">
                   <span className="flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" />{item.replies}</span>
@@ -170,7 +154,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-      </div>
     </div>
   );
 }

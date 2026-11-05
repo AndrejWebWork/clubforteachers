@@ -12,7 +12,7 @@ export function ActionProvider({ children }) {
       {children}
       {dialog && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4" onClick={() => setDialog(null)}>
-          <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-card p-6 shadow-panel" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold">{dialog.title || "Успешно!"}</h2>
             <div className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">
               {typeof dialog.description === "string" ? <RichText text={dialog.description} /> : (dialog.description || "Ова е демонстрациска акција во прототипот.")}

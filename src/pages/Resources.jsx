@@ -68,6 +68,15 @@ export function Resources() {
             const file = event.currentTarget.elements.file.files?.[0];
             try {
               const payload = { ...draft };
+              const cover = event.currentTarget.elements.cover.files?.[0];
+              if (cover) {
+                const placedCover = await placeFile(cover);
+                if (placedCover.url) payload.cover = placedCover.url;
+                else {
+                  payload.coverData = placedCover.data;
+                  payload.coverName = cover.name;
+                }
+              }
               if (file) {
                 const placed = await placeFile(file);
                 payload.name = placed.name;
@@ -96,6 +105,7 @@ export function Resources() {
             </select>
           </div>
           <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Опис" value={draft.detail} onChange={(event) => setDraft({ ...draft, detail: event.target.value })} />
+          <span className="text-sm font-bold text-brand-deep">Насловна слика<input type="file" name="cover" accept="image/jpeg,image/png,image/webp" className="mt-1 block text-sm" /></span>
           <FilePick name="file" />
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>
@@ -127,7 +137,7 @@ export function Resources() {
           const lead = item.source === "LEAD" || item.author === "LEAD тим";
           return (
             <Link key={item.id} to={`/resursi/${item.id}`} className="resource-card group">
-              <span className={`resource-thumb ${lead ? "lead" : ""}`}><KindIcon kind={resourceKind(item)} /></span>
+              <span className={`resource-thumb ${lead ? "lead" : ""}`}>{item.cover ? <img src={item.cover} alt="" className="h-full w-full object-cover" /> : <KindIcon kind={resourceKind(item)} />}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap gap-1.5">
                   <span className="file-badge">{resourceKind(item)}</span>
@@ -183,9 +193,21 @@ export function ResourceDetail() {
             const result = await api.downloadResource(item.id);
             setItem({ ...item, downloads: result.downloads });
             if (item.fileUrl) {
+              const name = decodeURIComponent(item.fileUrl.split("/").pop() || `${item.title}.pdf`);
+              if (item.fileUrl.startsWith("/api/media/file/")) {
+                const response = await fetch(`${item.fileUrl}?download=1`, { credentials: "include" });
+                if (!response.ok) throw new Error("Ресурсот не можеше да се преземе.");
+                const blob = await response.blob();
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = name;
+                link.click();
+                URL.revokeObjectURL(link.href);
+                return;
+              }
               const link = document.createElement("a");
               link.href = item.fileUrl;
-              link.download = "";
+              link.download = name;
               link.click();
               return;
             }

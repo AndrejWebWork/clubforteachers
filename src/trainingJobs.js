@@ -42,6 +42,35 @@ async function attachMedia(payload, { cover, file, link, module, onProgress }) {
   if (payload.videoUrl) payload.modulePosition = Number(module) === 2 ? 2 : 1;
 }
 
+export function queueCourse({ title, info, module1, module2, questions }) {
+  const jobId = `job-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  jobs = [...jobs, { id: jobId, title, note: "Се поставува обуката…", error: "", done: false }];
+  publish();
+  const onProgress = (note) => patch(jobId, { note });
+  (async () => {
+    const first = { ...info, title, blurb: module1.blurb, modulePosition: 1 };
+    await attachMedia(first, { cover: module1.cover, file: module1.file, link: module1.link, module: 1, onProgress });
+    onProgress("Се зачувува модул 1…");
+    const created = await api.addTraining(first);
+    const second = { ...info, title, blurb: module2.blurb, modulePosition: 2, certificateLine: info.certificateLine };
+    await attachMedia(second, { cover: null, file: module2.file, link: module2.link, module: 2, onProgress });
+    onProgress("Се зачувува модул 2…");
+    await api.updateTraining(created.training.id, second);
+    if (questions.length) {
+      onProgress("Се зачувуваат тестовите…");
+      await api.saveQuiz(created.training.id, questions);
+    }
+  })()
+    .then(() => {
+      patch(jobId, { done: true, note: "Обуката е објавена." });
+      window.setTimeout(() => dismissTrainingJob(jobId), 12000);
+    })
+    .catch((error) => {
+      patch(jobId, { done: true, error: error.message || "Поставувањето не успеа.", note: "" });
+    });
+  return jobId;
+}
+
 export function queueTraining({ title, cover, file, link, module, payload, mode, id }) {
   const jobId = `job-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   jobs = [...jobs, { id: jobId, title, note: "Се поставува во позадина…", error: "", done: false }];

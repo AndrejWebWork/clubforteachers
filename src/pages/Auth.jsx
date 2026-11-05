@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { Button } from "../components/ui";
 
@@ -39,6 +40,8 @@ export function SignIn() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetNote, setResetNote] = useState("");
 
   if (!authReady) return <section className="panel">Се проверува најавата...</section>;
 
@@ -76,6 +79,34 @@ export function SignIn() {
             <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2" required />
           </label>
           {error && <p className="text-sm font-semibold text-brand-urgent">{error}</p>}
+          <button
+            type="button"
+            className="text-left text-sm font-bold text-primary"
+            onClick={() => setResetOpen(true)}
+          >
+            Заборавена лозинка
+          </button>
+          {resetOpen && (
+            <div className="grid gap-2">
+              <p className="text-sm text-muted-foreground">Напишете ја е-поштата. Раководителот ќе постави нова лозинка и ќе ви ја каже. Порака по е-пошта не се испраќа автоматски.</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  setResetNote("");
+                  try {
+                    const data = await api.requestReset(email);
+                    setResetNote(data.message);
+                  } catch (reason) {
+                    setResetNote(reason.message);
+                  }
+                }}
+              >
+                Ресетирај лозинка
+              </Button>
+              {resetNote && <p className="text-sm font-semibold text-brand-deep">{resetNote}</p>}
+            </div>
+          )}
           <Button type="submit" className="cta-link" disabled={pending}>
             {pending ? "Се најавува..." : "Најави се"}
             <ArrowRight className="h-4 w-4" />

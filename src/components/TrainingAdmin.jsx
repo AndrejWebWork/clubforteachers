@@ -1,19 +1,36 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { placeFile } from "../media";
-import { queueTraining, watchTrainingJobs } from "../trainingJobs";
+import { queueCourse, queueTraining, watchTrainingJobs } from "../trainingJobs";
 import { Button, FilePick, SuccessPop, uploadFailed } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 
-const emptyQuestion = () => ({ prompt: "", options: ["", "", "", ""], correctIndex: 0 });
+const emptyQuestion = (module = 1) => ({ prompt: "", options: ["", "", "", ""], correctIndex: 0, module });
+const blankWizard = () => ({
+  title: "",
+  description: "",
+  duration: "180 минути",
+  format: "Онлајн",
+  status: "Отворена",
+  certificateLine: "",
+  m1: { blurb: "", link: "" },
+  m2: { blurb: "", link: "" },
+  q1: Array.from({ length: 10 }, () => emptyQuestion(1)),
+  q2: Array.from({ length: 10 }, () => emptyQuestion(2)),
+});
 
 export default function TrainingAdmin() {
   const [trainings, setTrainings] = useState([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [done, setDone] = useState(null);
-  const [form, setForm] = useState({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1, driveLink: "" });
+  const [step, setStep] = useState(1);
+  const [wizard, setWizard] = useState(blankWizard);
+  const [results, setResults] = useState(null);
+  const coverRef = useRef(null);
+  const file1 = useRef(null);
+  const file2 = useRef(null);
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
   const [editPulse, setEditPulse] = useState(0);
@@ -72,58 +89,114 @@ export default function TrainingAdmin() {
       <SuccessPop title={done?.title} text={done?.text} onClose={() => setDone(null)} />
       <div className="admin-split">
       <form
-        className="panel grid"
+        className="panel grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          const file = event.currentTarget.elements.video.files?.[0];
-          const cover = event.currentTarget.elements.cover.files?.[0];
-          const title = form.title.trim();
-          queueTraining({
+          if (step < 6) {
+            setStep(step + 1);
+            return;
+          }
+          const ready = [...wizard.q1, ...wizard.q2].every((question) => question.prompt.trim() && question.options.every((option) => option.trim()));
+          if (!ready) {
+            setError("Секој модул има 10 прашања, со текст и 4 одговори.");
+            return;
+          }
+          const title = wizard.title.trim();
+          queueCourse({
             title,
-            cover,
-            file,
-            link: form.driveLink.trim(),
-            module: form.module,
-            payload: { ...form, title },
-            mode: "create",
+            info: {
+              title,
+              category: "Обука",
+              description: wizard.description,
+              duration: wizard.duration,
+              format: wizard.format,
+              level: "Сите нивоа",
+              status: wizard.status,
+              certificateLine: wizard.certificateLine,
+            },
+            module1: { blurb: wizard.m1.blurb, link: wizard.m1.link.trim(), file: file1.current?.files?.[0], cover: coverRef.current?.files?.[0] },
+            module2: { blurb: wizard.m2.blurb, link: wizard.m2.link.trim(), file: file2.current?.files?.[0] },
+            questions: [...wizard.q1, ...wizard.q2],
           });
-          setForm({ title: "", category: "Обука", description: "", duration: "180 минути", format: "Онлајн", level: "Сите нивоа", status: "Отворена", module: 1, driveLink: "" });
-          event.currentTarget.reset();
-          setDone({
-            title: "Поставувањето продолжи",
-            text: `„${title}“ се поставува во позадина. Може да излезете од админот и да ги проверите другите страници.`,
-          });
+          setWizard(blankWizard());
+          setStep(1);
+          if (coverRef.current) coverRef.current.value = "";
+          if (file1.current) file1.current.value = "";
+          if (file2.current) file2.current.value = "";
+          setDone({ title: "Обуката се објавува", text: `„${title}“ се поставува. Ќе се појави кај Обуки кога ќе заврши качувањето.` });
         }}
       >
-        <h2 className="section-heading">Нова обука</h2>
-        <input className={inputClass} placeholder="Наслов" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-        <textarea className="min-h-28 rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <input className={inputClass} placeholder="Категорија" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} />
-          <input className={`${inputClass} sm:col-span-2`} placeholder="Траење" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} />
-          <input className={inputClass} placeholder="Формат" value={form.format} onChange={(event) => setForm({ ...form, format: event.target.value })} />
-          <select className={inputClass} value={form.status === "Отворена" ? "Отворена" : "Затворена"} onChange={(event) => setForm({ ...form, status: event.target.value })}>
-            <option>Отворена</option>
-            <option>Затворена</option>
-          </select>
-          <select className={inputClass} value={form.module} onChange={(event) => setForm({ ...form, module: Number(event.target.value) })}>
-            <option value={1}>Модул 1</option>
-            <option value={2}>Модул 2</option>
-          </select>
+        <h2 className="section-heading">Нова обука · чекор {step} од 6</h2>
+        <p className="text-sm text-muted-foreground">Податоци, модул 1, модул 2, тест за модул 1, тест за модул 2, па Објави. Наставникот оди модул, тест со 80%, следен модул, тест, евалуација и сертификат.</p>
+        {step === 1 && (
+          <>
+            <input className={inputClass} placeholder="Наслов" value={wizard.title} onChange={(event) => setWizard({ ...wizard, title: event.target.value })} required />
+            <textarea className="min-h-28 rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис на обуката" value={wizard.description} onChange={(event) => setWizard({ ...wizard, description: event.target.value })} />
+            <input className={inputClass} placeholder="Траење" value={wizard.duration} onChange={(event) => setWizard({ ...wizard, duration: event.target.value })} />
+            <input className={inputClass} placeholder="Формат" value={wizard.format} onChange={(event) => setWizard({ ...wizard, format: event.target.value })} />
+            <select className={inputClass} value={wizard.status} onChange={(event) => setWizard({ ...wizard, status: event.target.value })}>
+              <option>Отворена</option>
+              <option>Затворена</option>
+            </select>
+            <div className="text-sm font-bold text-brand-deep">
+              Cover слика
+              <FilePick inputRef={coverRef} accept="image/jpeg,image/png,image/webp,image/gif" />
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <h3 className="font-bold text-brand-deep">Модул 1</h3>
+            <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Краток опис на модулот" value={wizard.m1.blurb} onChange={(event) => setWizard({ ...wizard, m1: { ...wizard.m1, blurb: event.target.value } })} />
+            <FilePick inputRef={file1} accept="video/mp4,video/webm,video/quicktime" />
+            <input className={inputClass} placeholder="или јавен Google Drive линк" value={wizard.m1.link} onChange={(event) => setWizard({ ...wizard, m1: { ...wizard.m1, link: event.target.value } })} />
+            <span className="text-sm text-muted-foreground">Директно качување е до 500 MB.</span>
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <h3 className="font-bold text-brand-deep">Модул 2</h3>
+            <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Краток опис на модулот" value={wizard.m2.blurb} onChange={(event) => setWizard({ ...wizard, m2: { ...wizard.m2, blurb: event.target.value } })} />
+            <FilePick inputRef={file2} accept="video/mp4,video/webm,video/quicktime" />
+            <input className={inputClass} placeholder="или јавен Google Drive линк" value={wizard.m2.link} onChange={(event) => setWizard({ ...wizard, m2: { ...wizard.m2, link: event.target.value } })} />
+          </>
+        )}
+        {(step === 4 || step === 5) && (
+          <div className="grid max-h-[28rem] gap-3 overflow-auto">
+            <h3 className="font-bold text-brand-deep">Тест · модул {step === 4 ? 1 : 2} · 10 прашања</h3>
+            {(step === 4 ? wizard.q1 : wizard.q2).map((question, index) => (
+              <fieldset key={index} className="grid gap-2 rounded-md border p-3">
+                <input className={inputClass} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => {
+                  const key = step === 4 ? "q1" : "q2";
+                  setWizard({ ...wizard, [key]: wizard[key].map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) });
+                }} />
+                {question.options.map((option, optionIndex) => (
+                  <label key={optionIndex} className="flex items-center gap-2">
+                    <input type="radio" name={`w-${step}-${index}`} checked={question.correctIndex === optionIndex} onChange={() => {
+                      const key = step === 4 ? "q1" : "q2";
+                      setWizard({ ...wizard, [key]: wizard[key].map((item, itemIndex) => itemIndex === index ? { ...item, correctIndex: optionIndex } : item) });
+                    }} />
+                    <input className={inputClass} placeholder={`Одговор ${optionIndex + 1}`} value={option} onChange={(event) => {
+                      const key = step === 4 ? "q1" : "q2";
+                      setWizard({ ...wizard, [key]: wizard[key].map((item, itemIndex) => itemIndex === index ? { ...item, options: item.options.map((value, valueIndex) => valueIndex === optionIndex ? event.target.value : value) } : item) });
+                    }} />
+                  </label>
+                ))}
+              </fieldset>
+            ))}
+          </div>
+        )}
+        {step === 6 && (
+          <>
+            <h3 className="font-bold text-brand-deep">Сертификат</h3>
+            <input className={inputClass} placeholder="Ред на сертификатот, на пример: за активно учество" value={wizard.certificateLine} onChange={(event) => setWizard({ ...wizard, certificateLine: event.target.value })} />
+            <p className="text-sm text-muted-foreground">Со Објави, обуката влегува кај Обуки: два модула, два теста и сертификат по евалуацијата.</p>
+          </>
+        )}
+        <div className="flex gap-2">
+          {step > 1 && <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>Назад</Button>}
+          <Button type="submit">{step === 6 ? "Објави" : "Следно"}</Button>
         </div>
-        <span className="text-sm font-medium text-muted-foreground">Нова тема што досега ја нема добива свое сортирање кај обуките. Празното место го задржува истиот текст.</span>
-        <div className="text-sm font-bold text-brand-deep">
-          Cover слика
-          <FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" />
-          <span className="mt-1 block font-medium text-muted-foreground">Се појавува на картичката на обуката. Ако не се прикачи, останува подготвената слика.</span>
-        </div>
-        <div className="text-sm font-bold text-brand-deep">
-          Видео на обуката
-          <FilePick name="video" accept="video/mp4,video/webm,video/quicktime" />
-          <input className={`${inputClass} mt-2`} placeholder="или јавен Google Drive линк до снимката" value={form.driveLink} onChange={(event) => setForm({ ...form, driveLink: event.target.value })} />
-          <span className="mt-1 block font-medium text-muted-foreground">Директно качување е до 500 MB. За подолга снимка залепете јавен Google Drive линк. Линкот се пушта овде, а фајлот мора да биде споделен со секој што го има линкот.</span>
-        </div>
-        <Button type="submit">Постави обука</Button>
       </form>
 
       <section className="panel">
@@ -201,6 +274,16 @@ export default function TrainingAdmin() {
                   })}
                 >
                   Тест
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => run(async () => {
+                    const data = await api.trainingResults(item.id);
+                    setResults({ title: item.title, ...data });
+                  })}
+                >
+                  Резултати
                 </Button>
               </div>
             </div>
@@ -305,9 +388,14 @@ export default function TrainingAdmin() {
           }}
         >
           <h2 className="section-heading">Тест за „{editing.title}“</h2>
+          <p className="text-sm text-muted-foreground">Секој модул има свој тест. Наставникот продолжува ако има најмалку 80% точни.</p>
           <div className="added-list grid gap-4">
           {questions.map((question, index) => (
             <fieldset key={index} className="grid gap-2 rounded-md border p-3">
+              <select className={inputClass} value={question.module === 2 ? 2 : 1} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, module: Number(event.target.value) } : item))}>
+                <option value={1}>Модул 1</option>
+                <option value={2}>Модул 2</option>
+              </select>
               <input className={inputClass} placeholder="Прашање" value={question.prompt} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item))} />
               {question.options.map((option, optionIndex) => (
                 <label key={optionIndex} className="flex items-center gap-2">
@@ -321,10 +409,44 @@ export default function TrainingAdmin() {
           </div>
           {quizNote && <p className={`text-sm font-semibold ${quizNote === "Тестот е зачуван." ? "text-brand-deep" : "text-brand-urgent"}`}>{quizNote}</p>}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setQuestions((current) => [...current, emptyQuestion()])}>Додај прашање</Button>
+            <Button type="button" variant="outline" onClick={() => setQuestions((current) => [...current, emptyQuestion(1)])}>Додај прашање</Button>
             <Button type="submit">Зачувај тест</Button>
           </div>
         </form>
+      )}
+
+      {results && (
+        <section className="panel grid gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="section-heading">Резултати · {results.title}</h2>
+            <Button type="button" variant="outline" onClick={() => setResults(null)}>Затвори</Button>
+          </div>
+          <div>
+            <h3 className="font-bold text-brand-deep">Положени тестови</h3>
+            {!results.passes?.length && <p className="text-sm text-muted-foreground">Сè уште никој не положил тест.</p>}
+            {results.passes?.map((row) => (
+              <p key={`${row.email}-${row.module}`} className="text-sm">{row.name} · модул {row.module} · {row.score}%</p>
+            ))}
+          </div>
+          <div>
+            <h3 className="font-bold text-brand-deep">Сертификати</h3>
+            {!results.certificates?.length && <p className="text-sm text-muted-foreground">Сè уште нема издаден сертификат.</p>}
+            {results.certificates?.map((row) => (
+              <p key={row.email} className="text-sm">{row.name} · {row.email}</p>
+            ))}
+          </div>
+          <div>
+            <h3 className="font-bold text-brand-deep">Евалуација · {results.evaluation?.count || 0} одговори</h3>
+            {["ratings", "useful", "recommend"].map((key) => (
+              <div key={key} className="mt-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground">{key === "ratings" ? "Оценка" : key === "useful" ? "Корисна" : "Препорака"}</p>
+                {(results.evaluation?.[key] || []).map((row) => (
+                  <p key={row.label} className="text-sm">{row.label}: {row.percent}% ({row.count})</p>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

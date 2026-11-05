@@ -8,9 +8,10 @@ import FeedAdmin from "../components/FeedAdmin";
 import EventAdmin from "../components/EventAdmin";
 import { Button, FilePick, PageHeader, SuccessPop, uploadFailed } from "../components/ui";
 
+const profiles = ["Наставник", "Педагог", "Психолог", "Специјален едукатор", "Дефектолог", "Раководител"];
+
 const tabs = [
   ["accounts", "Сметки"],
-  ["videos", "Видеа"],
   ["files", "Прилози"],
   ["mail", "Пошта"],
   ["trainings", "Обуки"],
@@ -61,7 +62,11 @@ export default function Admin() {
   const [storageMode, setStorageMode] = useState("local");
   const videoFile = useRef(null);
   const memberFile = useRef(null);
-  const [mailForm, setMailForm] = useState({ subject: "", message: "", allTeachers: true, recipientIds: [], attachmentIds: [] });
+  const [mailForm, setMailForm] = useState({ subject: "", message: "", audience: "all", recipientIds: [], attachmentIds: [] });
+  const [memberQuery, setMemberQuery] = useState("");
+  const [memberFilter, setMemberFilter] = useState("сите");
+  const [resets, setResets] = useState([]);
+  const [freshPassword, setFreshPassword] = useState(null);
   const [fileForm, setFileForm] = useState({ title: "", kind: "Прирачник", source: "LEAD" });
   const resourceKinds = ["Прирачник", "Презентација", "Работен лист", "Видео", "Линк", "Алатка", "Друго"];
 
@@ -151,6 +156,7 @@ export default function Admin() {
       {tab === "events" && <EventAdmin />}
 
       {tab === "accounts" && (
+        <>
         <div className="admin-split form-wide">
           <form
             className="panel grid gap-3"
@@ -180,9 +186,8 @@ export default function Admin() {
               <input className={inputClass} value={accountForm.title} onChange={(event) => setAccountForm({ ...accountForm, title: event.target.value })} placeholder="Наставник по ..." />
             </Field>
             <Field label="Улога">
-              <select className={inputClass} value={accountForm.role} onChange={(event) => setAccountForm({ ...accountForm, role: event.target.value })}>
-                <option value="teacher">Наставник</option>
-                <option value="admin">Раководител</option>
+              <select className={inputClass} value={accountForm.profile || "Наставник"} onChange={(event) => setAccountForm({ ...accountForm, profile: event.target.value, role: event.target.value === "Раководител" ? "admin" : "teacher", title: event.target.value })}>
+                {profiles.map((item) => <option key={item}>{item}</option>)}
               </select>
             </Field>
             <Button type="submit">Отвори сметка</Button>
@@ -235,22 +240,44 @@ export default function Admin() {
                 </table>
               </div>
             )}
-            <h2 className="section-heading">Членови</h2>
-            <div className="added-list divide-y">
-              {accounts.map((account) => (
-                <div key={account.id} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
+          </section>
+        </div>
+        <section className="panel mt-5">
+            <h2 className="section-heading">Барања за нова лозинка</h2>
+            <Button type="button" variant="outline" className="mb-3" onClick={() => api.passwordResets().then((data) => setResets(data.requests || [])).catch((reason) => setError(reason.message))}>Освежи барања</Button>
+            {!resets.length && <p className="mb-4 text-sm text-muted-foreground">Нема отворени барања.</p>}
+            {resets.map((item) => (
+              <p key={item.id} className="text-sm">{item.name || "Член"} · {item.email}</p>
+            ))}
+            <h2 className="section-heading mt-6">Членови</h2>
+            <input className={`${inputClass} mb-3`} placeholder="Пребарај по име или е-пошта" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} />
+            <div className="mb-3 flex flex-wrap gap-2">
+              {[["сите", "Сите"], ["osnovno", "Основно"], ["polno", "Мастер"]].map(([id, label]) => (
+                <button key={id} type="button" className={`sort-chip ${memberFilter === id ? "active" : ""}`} onClick={() => setMemberFilter(id)}>{label}</button>
+              ))}
+            </div>
+            {freshPassword && <p className="mb-3 text-sm font-bold text-brand-deep">Нова лозинка за {freshPassword.email}: {freshPassword.password}. Се гледа само сега.</p>}
+            <div className="member-board">
+              {accounts.filter((account) => {
+                const hay = `${account.name} ${account.email}`.toLocaleLowerCase("mk");
+                if (memberQuery && !hay.includes(memberQuery.toLocaleLowerCase("mk"))) return false;
+                if (memberFilter === "сите") return true;
+                return (account.membership === "polno" ? "polno" : "osnovno") === memberFilter;
+              }).map((account) => {
+                const profile = account.role === "admin" ? "Раководител" : profiles.includes(account.title) ? account.title : "Наставник";
+                return (
+                <div key={account.id} className="grid gap-2 border-b py-3 lg:grid-cols-[minmax(0,1fr)_220px_180px] lg:items-center">
                   <div>
                     <b className="text-brand-deep">{account.name}</b>
-                    <p className="text-sm text-muted-foreground">{account.email} · {account.school}</p>
+                    <p className="text-sm text-muted-foreground">{account.email} · {account.school} · {profile}</p>
                   </div>
                   <div className="grid gap-2">
                   <select
                     className={inputClass}
-                    value={account.role}
-                    onChange={(event) => run(() => api.setRole(account.id, event.target.value))}
+                    value={profile}
+                    onChange={(event) => run(() => api.setProfile(account.id, event.target.value))}
                   >
-                    <option value="teacher">Наставник</option>
-                    <option value="admin">Раководител</option>
+                    {profiles.map((item) => <option key={item}>{item}</option>)}
                   </select>
                   <select
                     className={inputClass}
@@ -258,14 +285,27 @@ export default function Admin() {
                     onChange={(event) => run(() => api.setMembership(account.id, event.target.value))}
                   >
                     <option value="osnovno">Основно членство</option>
-                    <option value="polno">Полно членство</option>
+                    <option value="polno">Мастер членство</option>
                   </select>
                   </div>
+                  <form className="flex gap-2" onSubmit={(event) => {
+                    event.preventDefault();
+                    const password = new FormData(event.currentTarget).get("password");
+                    if (!password || String(password).length < 8) return;
+                    run(async () => {
+                      await api.setPassword(account.id, String(password));
+                      setFreshPassword({ email: account.email, password: String(password) });
+                      event.currentTarget.reset();
+                    });
+                  }}>
+                    <input name="password" className={inputClass} placeholder="Нова лозинка" minLength={8} />
+                    <Button type="submit">Постави</Button>
+                  </form>
                 </div>
-              ))}
+              );})}
             </div>
-          </section>
-        </div>
+        </section>
+        </>
       )}
 
       {tab === "videos" && (
@@ -432,35 +472,20 @@ export default function Admin() {
                 const sent = await api.sendMail(mailForm);
                 const to = sent.message.to.map((item) => item.email).join(",");
                 window.location.href = `mailto:${to}?subject=${encodeURIComponent(sent.message.subject)}&body=${encodeURIComponent(sent.message.message)}`;
-                setMailForm({ subject: "", message: "", allTeachers: true, recipientIds: [], attachmentIds: [] });
+                setMailForm({ subject: "", message: "", audience: "all", recipientIds: [], attachmentIds: [] });
                 setNotice("Пораката е запишана и се отвора во вашата е-пошта.");
               });
             }}
           >
             <h2 className="section-heading">Порака до наставници</h2>
-            <label className="flex items-center gap-2 text-sm font-semibold text-brand-deep">
-              <input type="checkbox" checked={mailForm.allTeachers} onChange={(event) => setMailForm({ ...mailForm, allTeachers: event.target.checked })} />
-              Сите наставници
-            </label>
-            {!mailForm.allTeachers && (
-              <div className="added-list grid gap-1">
-                {accounts.filter((account) => account.role === "teacher").map((account) => (
-                  <label key={account.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={mailForm.recipientIds.includes(account.id)}
-                      onChange={(event) => {
-                        const recipientIds = event.target.checked
-                          ? [...mailForm.recipientIds, account.id]
-                          : mailForm.recipientIds.filter((item) => item !== account.id);
-                        setMailForm({ ...mailForm, recipientIds });
-                      }}
-                    />
-                    {account.name}
-                  </label>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-3 text-sm font-semibold text-brand-deep">
+              {[["all", "Сите"], ["osnovno", "Основно членство"], ["polno", "Мастер членство"]].map(([id, label]) => (
+                <label key={id} className="flex items-center gap-2">
+                  <input type="radio" name="audience" checked={mailForm.audience === id} onChange={() => setMailForm({ ...mailForm, audience: id })} />
+                  {label}
+                </label>
+              ))}
+            </div>
             <Field label="Наслов">
               <input className={inputClass} value={mailForm.subject} onChange={(event) => setMailForm({ ...mailForm, subject: event.target.value })} required />
             </Field>

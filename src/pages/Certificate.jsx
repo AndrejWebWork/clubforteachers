@@ -21,6 +21,7 @@ async function downloadCertificate(certificate) {
   page.drawText(certificate.name, { x: 70, y: 300, size: 26, font, color: rgb(0.07, 0.24, 0.28) });
   page.drawText("успешно ја заврши обуката, тестот и евалуацијата", { x: 70, y: 250, size: 14, font, color: rgb(0.15, 0.15, 0.15) });
   page.drawText(certificate.title, { x: 70, y: 210, size: 20, font, color: rgb(0.07, 0.24, 0.28) });
+  if (certificate.line) page.drawText(certificate.line, { x: 70, y: 170, size: 14, font, color: rgb(0.15, 0.15, 0.15) });
   page.drawText(`Издаден на ${issued}  ·  ${certificate.id}`, { x: 70, y: 120, size: 12, font, color: rgb(0.3, 0.3, 0.3) });
   const bytes = await pdf.save();
   const link = document.createElement("a");
