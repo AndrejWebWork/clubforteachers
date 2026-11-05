@@ -983,6 +983,13 @@ button.cal-item:hover {
   padding: 1rem;
   transition: transform 0.15s, box-shadow 0.15s;
   display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.resource-card h3,
+.resource-card p,
+.resource-card .see-all {
+  overflow-wrap: anywhere;
 }
 .resource-card:hover { box-shadow: var(--shadow-panel); transform: translateY(-2px); }
 .resource-thumb {

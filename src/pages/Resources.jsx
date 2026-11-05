@@ -183,7 +183,7 @@ export function ResourceDetail() {
       <article className="panel p-7 sm:p-10">
         <span className="tag">{item.type}</span>
         <p className="mt-5 text-sm font-bold text-primary">{item.category}</p>
-        <h1 className="mt-2 text-3xl font-bold text-brand-deep">{item.title}</h1>
+        <h1 className="mt-2 break-words text-3xl font-bold text-brand-deep">{item.title}</h1>
         <p className="mt-3 text-muted-foreground">Подготвил {item.author} · {item.date} · {item.downloads} симнувања</p>
         <div className="my-8 border-y py-8">
           <p className="leading-7">{item.detail}</p>
