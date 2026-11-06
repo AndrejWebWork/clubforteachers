@@ -42,17 +42,26 @@ async function attachMedia(payload, { cover, file, link, module, onProgress }) {
   if (payload.videoUrl) payload.modulePosition = Number(module) === 2 ? 2 : 1;
 }
 
-export function queueCourse({ title, info, module1, module2, questions }) {
+export function queueCourse({ title, info, module1, module2, questions, template, evalQuestions }) {
   const jobId = `job-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   jobs = [...jobs, { id: jobId, title, note: "Се поставува обуката…", error: "", done: false }];
   publish();
   const onProgress = (note) => patch(jobId, { note });
   (async () => {
-    const first = { ...info, title, blurb: module1.blurb, modulePosition: 1 };
+    const first = { ...info, title, blurb: module1.blurb, modulePosition: 1, evalQuestions };
+    if (template) {
+      onProgress("Се качува шаблонот за сертификат…");
+      const saved = await placeFile(template);
+      if (saved.url) first.certificateTemplate = saved.url;
+      else if (saved.data) {
+        first.certificateData = saved.data;
+        first.certificateName = template.name;
+      }
+    }
     await attachMedia(first, { cover: module1.cover, file: module1.file, link: module1.link, module: 1, onProgress });
     onProgress("Се зачувува модул 1…");
     const created = await api.addTraining(first);
-    const second = { ...info, title, blurb: module2.blurb, modulePosition: 2, certificateLine: info.certificateLine };
+    const second = { ...info, title, blurb: module2.blurb, modulePosition: 2, certificateLine: info.certificateLine, evalQuestions, certificateTemplate: first.certificateTemplate };
     await attachMedia(second, { cover: null, file: module2.file, link: module2.link, module: 2, onProgress });
     onProgress("Се зачувува модул 2…");
     await api.updateTraining(created.training.id, second);
@@ -71,13 +80,22 @@ export function queueCourse({ title, info, module1, module2, questions }) {
   return jobId;
 }
 
-export function queueTraining({ title, cover, file, link, module, payload, mode, id }) {
+export function queueTraining({ title, cover, file, link, module, payload, mode, id, template }) {
   const jobId = `job-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   jobs = [...jobs, { id: jobId, title, note: "Се поставува во позадина…", error: "", done: false }];
   publish();
   const onProgress = (note) => patch(jobId, { note });
   (async () => {
     const body = { ...payload };
+    if (template) {
+      onProgress("Се качува шаблонот за сертификат…");
+      const saved = await placeFile(template);
+      if (saved.url) body.certificateTemplate = saved.url;
+      else if (saved.data) {
+        body.certificateData = saved.data;
+        body.certificateName = template.name;
+      }
+    }
     await attachMedia(body, { cover, file, link, module, onProgress });
     onProgress("Се зачувува обуката…");
     if (mode === "edit") await api.updateTraining(id, body);

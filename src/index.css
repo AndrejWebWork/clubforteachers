@@ -485,6 +485,15 @@ button, input, textarea, select { font-family: inherit; }
 .legend.yellow { background: var(--brand-yellow); }
 .legend.deep { background: var(--brand-deep); }
 .legend.alert { background: var(--brand-urgent); }
+.certificate-preview {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  height: min(70vh, 42rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
 .certificate {
   border: 10px solid var(--brand-deep);
   border-radius: var(--radius);

@@ -27,7 +27,7 @@ export function applySecurityHeaders(req, res) {
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob:",
       "media-src 'self' blob: https:",
-      "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+      "frame-src 'self' blob: https://www.youtube.com https://www.youtube-nocookie.com",
       "connect-src 'self' ws: wss: https:",
       "object-src 'none'",
       "base-uri 'self'",

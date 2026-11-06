@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { driveVideoPath } from "../driveVideo";
+import { evalList } from "../evalQuestions";
 import { Button, PageHeader } from "../components/ui";
 
 function formatTime(value) {
@@ -63,10 +64,7 @@ export default function TrainingPlayer() {
   const [quizNote, setQuizNote] = useState("");
   const [activeId, setActiveId] = useState("");
   const [awaitingEval, setAwaitingEval] = useState(false);
-  const [evalRating, setEvalRating] = useState("5");
-  const [evalUseful, setEvalUseful] = useState("Да");
-  const [evalRecommend, setEvalRecommend] = useState("Да");
-  const [evalComment, setEvalComment] = useState("");
+  const [evalAnswers, setEvalAnswers] = useState([]);
   const [volume, setVolume] = useState(() => {
     const saved = localStorage.getItem("kn-volume");
     const value = Number(saved);
@@ -443,8 +441,14 @@ export default function TrainingPlayer() {
             onSubmit={async (event) => {
               event.preventDefault();
               setQuizNote("");
+              const questions = evalList(training);
+              const answers = questions.map((question, index) => ({ prompt: question.prompt, kind: question.kind, options: question.options, value: String(evalAnswers[index] || "").trim() }));
+              if (answers.some((item) => !item.value)) {
+                setQuizNote("Одговорете на сите прашања за евалуација.");
+                return;
+              }
               try {
-                await api.submitEvaluation(training.id, { rating: Number(evalRating), useful: evalUseful, recommend: evalRecommend, comment: evalComment });
+                await api.submitEvaluation(training.id, { answers });
                 navigate(`/obuki/${training.id}/sertifikat`);
               } catch (reason) {
                 setQuizNote(reason.message);
@@ -452,25 +456,37 @@ export default function TrainingPlayer() {
             }}
           >
             <p className="text-sm font-bold text-brand-deep">Двата теста се положени. Пополнете ја евалуацијата за да се издаде сертификатот.</p>
-            <label className="text-sm font-bold text-brand-deep">
-              Оценка од 1 до 5
-              <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalRating} onChange={(event) => setEvalRating(event.target.value)}>
-                {["5", "4", "3", "2", "1"].map((value) => <option key={value}>{value}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-bold text-brand-deep">
-              Дали обуката ви беше корисна?
-              <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalUseful} onChange={(event) => setEvalUseful(event.target.value)}>
-                {["Да", "Делумно", "Не"].map((value) => <option key={value}>{value}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-bold text-brand-deep">
-              Би ја препорачале?
-              <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={evalRecommend} onChange={(event) => setEvalRecommend(event.target.value)}>
-                {["Да", "Не"].map((value) => <option key={value}>{value}</option>)}
-              </select>
-            </label>
-            <textarea required rows={4} className="rounded-md border bg-card px-3 py-2 text-sm" placeholder="Што беше корисно во обуката?" value={evalComment} onChange={(event) => setEvalComment(event.target.value)} />
+            {evalList(training).map((question, index) => (
+              <label key={`${question.prompt}-${index}`} className="grid gap-1 text-sm font-bold text-brand-deep">
+                {question.prompt}
+                {question.kind === "rating" && (
+                  <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm font-medium" value={evalAnswers[index] || "5"} onChange={(event) => setEvalAnswers((current) => {
+                    const next = [...current];
+                    next[index] = event.target.value;
+                    return next;
+                  })}>
+                    {["5", "4", "3", "2", "1"].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                )}
+                {question.kind === "choice" && (
+                  <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm font-medium" value={evalAnswers[index] || ""} onChange={(event) => setEvalAnswers((current) => {
+                    const next = [...current];
+                    next[index] = event.target.value;
+                    return next;
+                  })}>
+                    <option value="">Изберете</option>
+                    {(question.options || []).map((option) => <option key={option}>{option}</option>)}
+                  </select>
+                )}
+                {question.kind === "text" && (
+                  <textarea required rows={4} className="rounded-md border bg-card px-3 py-2 text-sm font-medium" value={evalAnswers[index] || ""} onChange={(event) => setEvalAnswers((current) => {
+                    const next = [...current];
+                    next[index] = event.target.value;
+                    return next;
+                  })} />
+                )}
+              </label>
+            ))}
             {quizNote && <p className="text-sm font-semibold text-brand-urgent">{quizNote}</p>}
             <Button type="submit">Испрати евалуација</Button>
           </form>
@@ -500,6 +516,7 @@ export default function TrainingPlayer() {
                   return;
                 }
                 if (result.needsEvaluation) {
+                  setEvalAnswers(evalList(training).map((question) => question.kind === "rating" ? "5" : ""));
                   setAwaitingEval(true);
                   return;
                 }

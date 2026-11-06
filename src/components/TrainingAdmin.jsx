@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { defaultEvalQuestions, emptyEvalQuestion } from "../evalQuestions";
 import { placeFile } from "../media";
 import { queueCourse, queueTraining, watchTrainingJobs } from "../trainingJobs";
 import { Button, FilePick, SuccessPop, uploadFailed } from "./ui";
@@ -18,7 +19,41 @@ const blankWizard = () => ({
   m2: { blurb: "", link: "" },
   q1: Array.from({ length: 10 }, () => emptyQuestion(1)),
   q2: Array.from({ length: 10 }, () => emptyQuestion(2)),
+  eval: defaultEvalQuestions(),
 });
+
+function EvalFields({ items, onChange }) {
+  function patch(index, next) {
+    onChange(items.map((item, itemIndex) => itemIndex === index ? { ...item, ...next } : item));
+  }
+  return (
+    <div className="grid max-h-[28rem] gap-3 overflow-auto">
+      {items.map((question, index) => (
+        <fieldset key={index} className="grid gap-2 rounded-md border p-3">
+          <select className={inputClass} value={question.kind} onChange={(event) => patch(index, { kind: event.target.value, options: event.target.value === "choice" ? (question.options?.length ? question.options : ["", ""]) : [] })}>
+            <option value="rating">Оценка 1–5</option>
+            <option value="choice">Избор</option>
+            <option value="text">Слободен одговор</option>
+          </select>
+          <input className={inputClass} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => patch(index, { prompt: event.target.value })} />
+          {question.kind === "choice" && (question.options || []).map((option, optionIndex) => (
+            <input
+              key={optionIndex}
+              className={inputClass}
+              placeholder={`Одговор ${optionIndex + 1}`}
+              value={option}
+              onChange={(event) => patch(index, { options: question.options.map((value, valueIndex) => valueIndex === optionIndex ? event.target.value : value) })}
+            />
+          ))}
+          {question.kind === "choice" && (
+            <button type="button" className="see-all w-fit" onClick={() => patch(index, { options: [...(question.options || []), ""] })}>Додај одговор</button>
+          )}
+          <button type="button" className="row-delete w-fit" onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}>Отстрани прашање</button>
+        </fieldset>
+      ))}
+    </div>
+  );
+}
 
 export default function TrainingAdmin() {
   const [trainings, setTrainings] = useState([]);
@@ -31,6 +66,7 @@ export default function TrainingAdmin() {
   const coverRef = useRef(null);
   const file1 = useRef(null);
   const file2 = useRef(null);
+  const certRef = useRef(null);
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
   const [editPulse, setEditPulse] = useState(0);
@@ -92,13 +128,18 @@ export default function TrainingAdmin() {
         className="panel grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          if (step < 6) {
+          if (step < 7) {
             setStep(step + 1);
             return;
           }
           const ready = [...wizard.q1, ...wizard.q2].every((question) => question.prompt.trim() && question.options.every((option) => option.trim()));
           if (!ready) {
             setError("Секој модул има 10 прашања, со текст и 4 одговори.");
+            return;
+          }
+          const evalReady = wizard.eval.filter((item) => item.prompt.trim());
+          if (evalReady.length < 3) {
+            setError("Ставете најмалку три прашања за евалуација.");
             return;
           }
           const title = wizard.title.trim();
@@ -117,17 +158,20 @@ export default function TrainingAdmin() {
             module1: { blurb: wizard.m1.blurb, link: wizard.m1.link.trim(), file: file1.current?.files?.[0], cover: coverRef.current?.files?.[0] },
             module2: { blurb: wizard.m2.blurb, link: wizard.m2.link.trim(), file: file2.current?.files?.[0] },
             questions: [...wizard.q1, ...wizard.q2],
+            evalQuestions: evalReady,
+            template: certRef.current?.files?.[0],
           });
           setWizard(blankWizard());
           setStep(1);
           if (coverRef.current) coverRef.current.value = "";
           if (file1.current) file1.current.value = "";
           if (file2.current) file2.current.value = "";
+          if (certRef.current) certRef.current.value = "";
           setDone({ title: "Обуката се објавува", text: `„${title}“ се поставува. Ќе се појави кај Обуки кога ќе заврши качувањето.` });
         }}
       >
-        <h2 className="section-heading">Нова обука · чекор {step} од 6</h2>
-        <p className="text-sm text-muted-foreground">Податоци, модул 1, модул 2, тест за модул 1, тест за модул 2, па Објави. Наставникот оди модул, тест со 80%, следен модул, тест, евалуација и сертификат.</p>
+        <h2 className="section-heading">Нова обука · чекор {step} од 7</h2>
+        <p className="text-sm text-muted-foreground">Податоци, два модула, два теста, евалуација, па шаблон за сертификат. Наставникот оди модул, тест со 80%, следен модул, тест, евалуација и сертификат.</p>
         {step === 1 && (
           <>
             <input className={inputClass} placeholder="Наслов" value={wizard.title} onChange={(event) => setWizard({ ...wizard, title: event.target.value })} required />
@@ -188,14 +232,24 @@ export default function TrainingAdmin() {
         )}
         {step === 6 && (
           <>
-            <h3 className="font-bold text-brand-deep">Сертификат</h3>
+            <h3 className="font-bold text-brand-deep">Прашања за евалуација</h3>
+            <p className="text-sm text-muted-foreground">Наставникот ги одговара по тестот на модул 2, пред да го добие сертификатот.</p>
+            <EvalFields items={wizard.eval} onChange={(evalQuestions) => setWizard({ ...wizard, eval: evalQuestions })} />
+            <Button type="button" variant="outline" onClick={() => setWizard({ ...wizard, eval: [...wizard.eval, emptyEvalQuestion()] })}>Додај прашање</Button>
+          </>
+        )}
+        {step === 7 && (
+          <>
+            <h3 className="font-bold text-brand-deep">Шаблон за сертификат</h3>
+            <p className="text-sm text-muted-foreground">Вметнете PDF или слика. На шаблонот се запишуваат името, презимето и датумот на издавање.</p>
+            <FilePick inputRef={certRef} accept="application/pdf,image/jpeg,image/png,image/webp" />
             <input className={inputClass} placeholder="Ред на сертификатот, на пример: за активно учество" value={wizard.certificateLine} onChange={(event) => setWizard({ ...wizard, certificateLine: event.target.value })} />
-            <p className="text-sm text-muted-foreground">Со Објави, обуката влегува кај Обуки: два модула, два теста и сертификат по евалуацијата.</p>
+            <p className="text-sm text-muted-foreground">Со Објави, обуката влегува кај Обуки: два модула, два теста, евалуација и сертификат.</p>
           </>
         )}
         <div className="flex gap-2">
           {step > 1 && <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>Назад</Button>}
-          <Button type="submit">{step === 6 ? "Објави" : "Следно"}</Button>
+          <Button type="submit">{step === 7 ? "Објави" : "Следно"}</Button>
         </div>
       </form>
 
@@ -240,21 +294,25 @@ export default function TrainingAdmin() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
+                  onClick={() => run(async () => {
+                    const data = await api.training(item.id);
+                    const training = data.training;
                     setCourse({
                       id: item.id,
-                      title: item.title || "",
-                      category: item.category || "",
-                      description: item.description || "",
-                      duration: item.duration || "",
-                      format: item.format || "",
-                      level: item.level || "Сите нивоа",
-                      status: item.status === "Затворена" ? "Затворена" : "Отворена",
-                      module: item.module || 1,
+                      title: training.title || "",
+                      category: training.category || "",
+                      description: training.description || "",
+                      duration: training.duration || "",
+                      format: training.format || "",
+                      level: training.level || "Сите нивоа",
+                      status: training.status === "Затворена" ? "Затворена" : "Отворена",
+                      module: training.module || 1,
                       videoLink: "",
+                      certificateLine: training.certificateLine || "",
+                      evalQuestions: training.evalQuestions?.length ? training.evalQuestions : defaultEvalQuestions(),
                     });
                     setEditPulse((value) => value + 1);
-                  }}
+                  })}
                 >
                   Уреди
                 </Button>
@@ -303,11 +361,13 @@ export default function TrainingAdmin() {
             event.preventDefault();
             const file = event.currentTarget.elements.video.files?.[0];
             const cover = event.currentTarget.elements.cover.files?.[0];
+            const template = event.currentTarget.elements.template.files?.[0];
             const title = course.title.trim();
             queueTraining({
               title,
               cover,
               file,
+              template,
               link: course.videoLink.trim(),
               module: course.module,
               id: course.id,
@@ -321,6 +381,8 @@ export default function TrainingAdmin() {
                 level: course.level,
                 status: course.status,
                 module: Number(course.module),
+                certificateLine: course.certificateLine,
+                evalQuestions: (course.evalQuestions || []).filter((item) => item.prompt.trim()),
               },
             });
             setCourse(null);
@@ -350,6 +412,15 @@ export default function TrainingAdmin() {
             Нова cover слика
             <FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" />
             <span className="mt-1 block font-medium text-muted-foreground">Ако не изберете нова, останува сегашната.</span>
+          </div>
+          <h3 className="font-bold text-brand-deep">Прашања за евалуација</h3>
+          <EvalFields items={course.evalQuestions || []} onChange={(evalQuestions) => setCourse({ ...course, evalQuestions })} />
+          <Button type="button" variant="outline" onClick={() => setCourse({ ...course, evalQuestions: [...(course.evalQuestions || []), emptyEvalQuestion()] })}>Додај прашање</Button>
+          <div className="text-sm font-bold text-brand-deep">
+            Шаблон за сертификат
+            <FilePick name="template" accept="application/pdf,image/jpeg,image/png,image/webp" />
+            <input className={`${inputClass} mt-2`} placeholder="Ред на сертификатот" value={course.certificateLine || ""} onChange={(event) => setCourse({ ...course, certificateLine: event.target.value })} />
+            <span className="mt-1 block font-medium text-muted-foreground">Ако не изберете нов шаблон, останува сегашниот. На шаблонот се запишуваат име, презиме и датум.</span>
           </div>
           <div className="text-sm font-bold text-brand-deep">
             Нова снимка
@@ -445,6 +516,14 @@ export default function TrainingAdmin() {
                 ))}
               </div>
             ))}
+            {(results.evaluation?.answers || []).length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground">Одговори</p>
+                {results.evaluation.answers.map((row, index) => (
+                  <p key={`${row.prompt}-${index}`} className="break-words text-sm"><b>{row.prompt}:</b> {row.value}</p>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

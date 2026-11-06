@@ -27,6 +27,53 @@ function fileId(prefix) {
   return `${prefix}-${randomBytes(6).toString("hex")}`;
 }
 
+function clip(value, max) {
+  return String(value || "").trim().slice(0, max);
+}
+
+function parseEvalQuestions(raw) {
+  let parsed = raw;
+  if (typeof raw === "string") {
+    try { parsed = JSON.parse(raw || "[]"); } catch { parsed = []; }
+  }
+  const list = Array.isArray(parsed) ? parsed : [];
+  const clean = [];
+  for (const item of list) {
+    const prompt = clip(item?.prompt, 300);
+    const kind = item?.kind === "rating" || item?.kind === "choice" ? item.kind : "text";
+    const options = kind === "choice"
+      ? (Array.isArray(item.options) ? item.options.map((option) => clip(option, 80)).filter(Boolean) : []).slice(0, 8)
+      : [];
+    if (!prompt) continue;
+    if (kind === "choice" && options.length < 2) continue;
+    clean.push({ prompt, kind, options });
+  }
+  return clean.slice(0, 20);
+}
+
+async function saveTrainingExtras(pool, trainingId, body, uploadDir, root) {
+  if (body.certificateLine != null) {
+    await pool.query("UPDATE trainings SET certificate_line = $1 WHERE id = $2", [clip(body.certificateLine, 240), trainingId]);
+  }
+  if (body.certificateTemplate != null) {
+    const link = storedLink(body.certificateTemplate) || (/^https:\/\//.test(body.certificateTemplate || "") ? clip(body.certificateTemplate, 2000) : "");
+    if (body.certificateTemplate === "") {
+      await pool.query("UPDATE trainings SET certificate_template = '' WHERE id = $1", [trainingId]);
+    } else if (link) {
+      await pool.query("UPDATE trainings SET certificate_template = $1 WHERE id = $2", [link, trainingId]);
+    }
+  }
+  if (body.certificateData) {
+    const saved = await saveUpload(uploadDir, body.certificateName || "sertifikat.pdf", body.certificateData, root);
+    if (!saved.error && saved.url) {
+      await pool.query("UPDATE trainings SET certificate_template = $1 WHERE id = $2", [saved.url, trainingId]);
+    }
+  }
+  if (body.evalQuestions != null) {
+    await pool.query("UPDATE trainings SET eval_questions = $1::jsonb WHERE id = $2", [JSON.stringify(parseEvalQuestions(body.evalQuestions)), trainingId]);
+  }
+}
+
 function storedLink(value) {
   const match = String(value || "").match(/^\/api\/media\/file\/([^/?]+)$/);
   if (!match) return "";
@@ -179,6 +226,9 @@ export async function ensureLearning(pool) {
   await pool.query("ALTER TABLE library_items ADD COLUMN IF NOT EXISTS cover_url text NOT NULL DEFAULT ''");
   await pool.query("ALTER TABLE training_evaluations ADD COLUMN IF NOT EXISTS useful text NOT NULL DEFAULT ''");
   await pool.query("ALTER TABLE training_evaluations ADD COLUMN IF NOT EXISTS recommend text NOT NULL DEFAULT ''");
+  await pool.query("ALTER TABLE trainings ADD COLUMN IF NOT EXISTS certificate_template text NOT NULL DEFAULT ''");
+  await pool.query("ALTER TABLE trainings ADD COLUMN IF NOT EXISTS eval_questions jsonb NOT NULL DEFAULT '[]'::jsonb");
+  await pool.query("ALTER TABLE training_evaluations ADD COLUMN IF NOT EXISTS answers jsonb NOT NULL DEFAULT '{}'::jsonb");
   await pool.query(`CREATE TABLE IF NOT EXISTS module_passes (
     user_id uuid NOT NULL,
     training_id text NOT NULL,
@@ -226,6 +276,8 @@ function mapTraining(row, questions, progress, certificate, isAdmin) {
     videoUrl: row.video_url,
     module: Number(row.module_no) === 2 ? 2 : 1,
     certificateLine: row.certificate_line || "",
+    certificateTemplate: row.certificate_template || "",
+    evalQuestions: parseEvalQuestions(row.eval_questions),
     durationSeconds: row.duration_seconds ? Number(row.duration_seconds) : 0,
     questions: questions.map((item) => ({
       id: item.id,
@@ -542,7 +594,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     );
     await ensureModules(pool);
     const position = Number(body.modulePosition) === 2 ? 2 : 1;
-    if (body.certificateLine) await pool.query("UPDATE trainings SET certificate_line = $1 WHERE id = $2", [text(body.certificateLine, 240), trainingId]);
+    await saveTrainingExtras(pool, trainingId, body, uploadDir, root);
     if (videoUrl || body.blurb) {
       await pool.query(
         "UPDATE training_modules SET video_url = CASE WHEN $1 = '' THEN video_url ELSE $1 END, blurb = CASE WHEN $4 = '' THEN blurb ELSE $4 END WHERE training_id = $2 AND position = $3",
@@ -618,21 +670,55 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
   if (method === "POST" && evaluationMatch) {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
-    const rating = Number(body.rating);
-    const comment = text(body.comment, 2000);
-    const useful = ["Да", "Делумно", "Не"].includes(body.useful) ? body.useful : "";
-    const recommend = body.recommend === "Да" || body.recommend === "Не" ? body.recommend : "";
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { status: 400, body: { error: "Оценката е од 1 до 5." } };
-    if (!useful || !recommend) return { status: 400, body: { error: "Одговорете дали обуката беше корисна и дали би ја препорачале." } };
-    if (!comment) return { status: 400, body: { error: "Напишете кратка евалуација." } };
+    const training = await pool.query("SELECT eval_questions FROM trainings WHERE id = $1", [evaluationMatch[1]]);
+    if (!training.rows[0]) return { status: 404, body: { error: "Обуката не е пронајдена." } };
+    const defined = parseEvalQuestions(training.rows[0].eval_questions);
+    const incoming = Array.isArray(body.answers) ? body.answers : [];
+    let rating = Number(body.rating);
+    let comment = text(body.comment, 2000);
+    let useful = ["Да", "Делумно", "Не"].includes(body.useful) ? body.useful : "";
+    let recommend = body.recommend === "Да" || body.recommend === "Не" ? body.recommend : "";
+    let answers = {};
+    if (incoming.length) {
+      const expected = defined.length ? defined : incoming.map((item) => ({
+        prompt: text(item.prompt, 300),
+        kind: item.kind === "rating" || item.kind === "choice" ? item.kind : "text",
+        options: Array.isArray(item.options) ? item.options : [],
+      })).filter((item) => item.prompt);
+      if (!expected.length) return { status: 400, body: { error: "Евалуацијата нема прашања." } };
+      if (incoming.length < expected.length) return { status: 400, body: { error: "Одговорете на сите прашања за евалуација." } };
+      const stored = [];
+      for (const [index, question] of expected.entries()) {
+        const value = text(incoming[index]?.value, 2000);
+        if (!value) return { status: 400, body: { error: "Одговорете на сите прашања за евалуација." } };
+        if (question.kind === "rating") {
+          const score = Number(value);
+          if (!Number.isInteger(score) || score < 1 || score > 5) return { status: 400, body: { error: "Оценката е од 1 до 5." } };
+          if (!Number.isInteger(rating) || rating < 1 || rating > 5) rating = score;
+        }
+        stored.push({ prompt: question.prompt, kind: question.kind, value });
+        const lower = question.prompt.toLocaleLowerCase("mk");
+        if (lower.includes("корисн") && !useful) useful = value;
+        if (lower.includes("препорач") && !recommend) recommend = value;
+      }
+      answers = stored;
+      if (!comment) comment = stored.filter((item) => item.kind === "text").map((item) => item.value).join("\n") || stored.map((item) => `${item.prompt}: ${item.value}`).join("\n");
+      if (!useful) useful = "Да";
+      if (!recommend) recommend = "Да";
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) rating = 5;
+    } else {
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { status: 400, body: { error: "Оценката е од 1 до 5." } };
+      if (!useful || !recommend) return { status: 400, body: { error: "Одговорете дали обуката беше корисна и дали би ја препорачале." } };
+      if (!comment) return { status: 400, body: { error: "Напишете кратка евалуација." } };
+    }
     const passed = await pool.query("SELECT 1 FROM module_passes WHERE user_id = $1 AND training_id = $2 AND module_no = 2", [auth.user.id, evaluationMatch[1]]);
     const legacy = await pool.query("SELECT 1 FROM training_passes WHERE user_id = $1 AND training_id = $2", [auth.user.id, evaluationMatch[1]]);
     const already = await pool.query("SELECT id FROM certificates WHERE user_id = $1 AND training_id = $2", [auth.user.id, evaluationMatch[1]]);
     if (!passed.rowCount && !legacy.rowCount && !already.rowCount) return { status: 400, body: { error: "Прво положете го тестот на модул 2." } };
     await pool.query(
-      `INSERT INTO training_evaluations (user_id, training_id, rating, comment, useful, recommend, created_at) VALUES ($1,$2,$3,$4,$5,$6, NOW())
-       ON CONFLICT (user_id, training_id) DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, useful = EXCLUDED.useful, recommend = EXCLUDED.recommend, created_at = NOW()`,
-      [auth.user.id, evaluationMatch[1], rating, comment, useful, recommend],
+      `INSERT INTO training_evaluations (user_id, training_id, rating, comment, useful, recommend, answers, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb, NOW())
+       ON CONFLICT (user_id, training_id) DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, useful = EXCLUDED.useful, recommend = EXCLUDED.recommend, answers = EXCLUDED.answers, created_at = NOW()`,
+      [auth.user.id, evaluationMatch[1], rating, comment, useful, recommend, JSON.stringify(answers)],
     );
     let certificateId = already.rows[0]?.id;
     if (!certificateId) {
@@ -706,7 +792,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
     const { rows } = await pool.query(
-      `SELECT c.id, c.holder_name, c.issued_at, t.title, t.certificate_line
+      `SELECT c.id, c.holder_name, c.issued_at, t.title, t.certificate_line, t.certificate_template
        FROM certificates c JOIN trainings t ON t.id = c.training_id
        WHERE c.user_id = $1 AND c.training_id = $2`,
       [auth.user.id, certificateMatch[1]],
@@ -720,6 +806,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
           name: rows[0].holder_name,
           title: rows[0].title,
           line: rows[0].certificate_line || "",
+          template: rows[0].certificate_template || "",
           issuedAt: rows[0].issued_at,
         },
       },
@@ -742,7 +829,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
        WHERE c.training_id = $1 ORDER BY u.name`,
       [resultsMatch[1]],
     );
-    const evaluations = await pool.query("SELECT rating, useful, recommend FROM training_evaluations WHERE training_id = $1", [resultsMatch[1]]);
+    const evaluations = await pool.query("SELECT rating, useful, recommend, comment, answers FROM training_evaluations WHERE training_id = $1", [resultsMatch[1]]);
     const share = (pick) => {
       const counts = new Map();
       for (const row of evaluations.rows) {
@@ -762,6 +849,10 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
           ratings: share((row) => String(row.rating)),
           useful: share((row) => row.useful),
           recommend: share((row) => row.recommend),
+          answers: evaluations.rows.flatMap((row) => {
+            const list = Array.isArray(row.answers) ? row.answers : [];
+            return list.length ? list : [{ prompt: "Коментар", kind: "text", value: row.comment }];
+          }),
         },
       },
     };
@@ -884,9 +975,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       ],
     );
     if (!updated.rowCount) return { status: 404, body: { error: "Обуката не е пронајдена." } };
-    if (body.certificateLine != null) {
-      await pool.query("UPDATE trainings SET certificate_line = $1 WHERE id = $2", [text(body.certificateLine, 240), trainingMatch[1]]);
-    }
+    await saveTrainingExtras(pool, trainingMatch[1], body, uploadDir, root);
     if (videoUrl && modulePosition) {
       await ensureModules(pool);
       await pool.query("UPDATE training_modules SET video_url = $1 WHERE training_id = $2 AND position = $3", [videoUrl, trainingMatch[1], modulePosition]);
