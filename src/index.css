@@ -757,6 +757,13 @@ button, input, textarea, select { font-family: inherit; }
   font-weight: 700;
   line-height: 1.5;
 }
+.module-note b {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .theme-sort {
   display: flex;
   flex-wrap: wrap;
