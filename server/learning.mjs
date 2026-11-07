@@ -75,11 +75,14 @@ async function saveTrainingExtras(pool, trainingId, body, uploadDir, root) {
 }
 
 function storedLink(value) {
-  const match = String(value || "").match(/^\/api\/media\/file\/([^/?]+)$/);
+  const raw = String(value || "").split("?")[0];
+  if (raw.startsWith("/uploads/")) return raw;
+  if (/^https:\/\//.test(raw)) return raw.slice(0, 2000);
+  const match = raw.match(/^\/api\/media\/file\/([^/?]+)$/);
   if (!match) return "";
   try {
     const key = decodeURIComponent(match[1]);
-    if (!/^files\/[\w.\-]+$/.test(key)) return "";
+    if (!/^(videos|files)\/[\w.\-]+$/.test(key)) return "";
     return `/api/media/file/${encodeURIComponent(key)}`;
   } catch {
     return "";
@@ -377,7 +380,7 @@ export async function listResources(pool) {
       cover: row.cover_url || "",
       downloads: row.downloads,
     })),
-  ].filter((item) => !hiddenIds.has(item.id)).sort((a, b) => b.downloads - a.downloads || a.title.localeCompare(b.title, "mk"));
+  ].filter((item) => !hiddenIds.has(item.id)).sort((a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0));
 }
 
 export async function listDocuments(pool) {
@@ -472,7 +475,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       if (saved.error) return { status: 400, body: { error: saved.error } };
       fileUrl = saved.url;
     }
-    let coverUrl = storedLink(body.cover) || "";
+    let coverUrl = storedLink(body.cover) || (body.cover && String(body.cover).startsWith("/api/media/file/") ? String(body.cover).split("?")[0] : "");
     if (!coverUrl && body.coverData) {
       const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
@@ -565,7 +568,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !videoUrl.startsWith("/api/media/drive/") && !/^https:\/\//.test(videoUrl)) {
       return { status: 400, body: { error: "Линкот мора да почнува со https://." } };
     }
-    let cover = storedLink(body.image) || (/^https:\/\//.test(body.image || "") ? text(body.image, 2000) : text(body.image, 40));
+    let cover = storedLink(body.image) || (["webinar", "project", "resource"].includes(body.image) ? body.image : "");
     if (!cover && body.coverData) {
       const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };

@@ -83,6 +83,11 @@ export const api = {
     const passwordHash = await sealPassword(password);
     return request(`/api/accounts/${id}`, { method: "PATCH", body: { passwordHash } });
   },
+  changeMyPassword: async (password) => {
+    const passwordHash = await sealPassword(password);
+    return request("/api/me", { method: "PATCH", body: { passwordHash } });
+  },
+  deleteAccount: (id) => request(`/api/accounts/${id}`, { method: "DELETE" }),
   requestReset: (email) => request("/api/password-reset", { method: "POST", body: { email } }),
   passwordResets: () => request("/api/password-resets"),
   setMembership: (id, membership) => request(`/api/accounts/${id}`, { method: "PATCH", body: { membership } }),

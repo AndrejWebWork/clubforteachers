@@ -67,6 +67,11 @@ export default function TrainingAdmin() {
   const file1 = useRef(null);
   const file2 = useRef(null);
   const certRef = useRef(null);
+  const wizardFormRef = useRef(null);
+  const [coverFile, setCoverFile] = useState(null);
+  const [video1, setVideo1] = useState(null);
+  const [video2, setVideo2] = useState(null);
+  const [templateFile, setTemplateFile] = useState(null);
   const [editing, setEditing] = useState(null);
   const [course, setCourse] = useState(null);
   const [editPulse, setEditPulse] = useState(0);
@@ -79,6 +84,13 @@ export default function TrainingAdmin() {
   function load() {
     return api.trainings().then((data) => setTrainings(data.trainings));
   }
+
+  useEffect(() => {
+    const node = wizardFormRef.current;
+    if (!node) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [step]);
 
   useEffect(() => {
     if (!course || !courseRef.current) return;
@@ -125,6 +137,7 @@ export default function TrainingAdmin() {
       <SuccessPop title={done?.title} text={done?.text} onClose={() => setDone(null)} />
       <div className="admin-split">
       <form
+        ref={wizardFormRef}
         className="panel grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
@@ -155,14 +168,18 @@ export default function TrainingAdmin() {
               status: wizard.status,
               certificateLine: wizard.certificateLine,
             },
-            module1: { blurb: wizard.m1.blurb, link: wizard.m1.link.trim(), file: file1.current?.files?.[0], cover: coverRef.current?.files?.[0] },
-            module2: { blurb: wizard.m2.blurb, link: wizard.m2.link.trim(), file: file2.current?.files?.[0] },
+            module1: { blurb: wizard.m1.blurb, link: wizard.m1.link.trim(), file: video1 || file1.current?.files?.[0], cover: coverFile || coverRef.current?.files?.[0] },
+            module2: { blurb: wizard.m2.blurb, link: wizard.m2.link.trim(), file: video2 || file2.current?.files?.[0] },
             questions: [...wizard.q1, ...wizard.q2],
             evalQuestions: evalReady,
-            template: certRef.current?.files?.[0],
+            template: templateFile || certRef.current?.files?.[0],
           });
           setWizard(blankWizard());
           setStep(1);
+          setCoverFile(null);
+          setVideo1(null);
+          setVideo2(null);
+          setTemplateFile(null);
           if (coverRef.current) coverRef.current.value = "";
           if (file1.current) file1.current.value = "";
           if (file2.current) file2.current.value = "";
@@ -172,9 +189,8 @@ export default function TrainingAdmin() {
       >
         <h2 className="section-heading">Нова обука · чекор {step} од 7</h2>
         <p className="text-sm text-muted-foreground">Податоци, два модула, два теста, евалуација, па шаблон за сертификат. Наставникот оди модул, тест со 80%, следен модул, тест, евалуација и сертификат.</p>
-        {step === 1 && (
-          <>
-            <input className={inputClass} placeholder="Наслов" value={wizard.title} onChange={(event) => setWizard({ ...wizard, title: event.target.value })} required />
+        <div className={step === 1 ? "grid gap-3" : "hidden"}>
+            <input className={inputClass} placeholder="Наслов" value={wizard.title} onChange={(event) => setWizard({ ...wizard, title: event.target.value })} required={step === 1} />
             <textarea className="min-h-28 rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис на обуката" value={wizard.description} onChange={(event) => setWizard({ ...wizard, description: event.target.value })} />
             <input className={inputClass} placeholder="Траење" value={wizard.duration} onChange={(event) => setWizard({ ...wizard, duration: event.target.value })} />
             <input className={inputClass} placeholder="Формат" value={wizard.format} onChange={(event) => setWizard({ ...wizard, format: event.target.value })} />
@@ -184,27 +200,22 @@ export default function TrainingAdmin() {
             </select>
             <div className="text-sm font-bold text-brand-deep">
               Cover слика
-              <FilePick inputRef={coverRef} accept="image/jpeg,image/png,image/webp,image/gif" />
+              <FilePick inputRef={coverRef} accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setCoverFile(event.target.files?.[0] || null)} />
             </div>
-          </>
-        )}
-        {step === 2 && (
-          <>
+        </div>
+        <div className={step === 2 ? "grid gap-3" : "hidden"}>
             <h3 className="font-bold text-brand-deep">Модул 1</h3>
             <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Краток опис на модулот" value={wizard.m1.blurb} onChange={(event) => setWizard({ ...wizard, m1: { ...wizard.m1, blurb: event.target.value } })} />
-            <FilePick inputRef={file1} accept="video/mp4,video/webm,video/quicktime" />
+            <FilePick inputRef={file1} accept="video/mp4,video/webm,video/quicktime" onChange={(event) => setVideo1(event.target.files?.[0] || null)} />
             <input className={inputClass} placeholder="или јавен Google Drive линк" value={wizard.m1.link} onChange={(event) => setWizard({ ...wizard, m1: { ...wizard.m1, link: event.target.value } })} />
             <span className="text-sm text-muted-foreground">Директно качување е до 500 MB.</span>
-          </>
-        )}
-        {step === 3 && (
-          <>
+        </div>
+        <div className={step === 3 ? "grid gap-3" : "hidden"}>
             <h3 className="font-bold text-brand-deep">Модул 2</h3>
             <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Краток опис на модулот" value={wizard.m2.blurb} onChange={(event) => setWizard({ ...wizard, m2: { ...wizard.m2, blurb: event.target.value } })} />
-            <FilePick inputRef={file2} accept="video/mp4,video/webm,video/quicktime" />
+            <FilePick inputRef={file2} accept="video/mp4,video/webm,video/quicktime" onChange={(event) => setVideo2(event.target.files?.[0] || null)} />
             <input className={inputClass} placeholder="или јавен Google Drive линк" value={wizard.m2.link} onChange={(event) => setWizard({ ...wizard, m2: { ...wizard.m2, link: event.target.value } })} />
-          </>
-        )}
+        </div>
         {(step === 4 || step === 5) && (
           <div className="grid max-h-[28rem] gap-3 overflow-auto">
             <h3 className="font-bold text-brand-deep">Тест · модул {step === 4 ? 1 : 2} · 10 прашања</h3>
@@ -238,15 +249,13 @@ export default function TrainingAdmin() {
             <Button type="button" variant="outline" onClick={() => setWizard({ ...wizard, eval: [...wizard.eval, emptyEvalQuestion()] })}>Додај прашање</Button>
           </>
         )}
-        {step === 7 && (
-          <>
+        <div className={step === 7 ? "grid gap-3" : "hidden"}>
             <h3 className="font-bold text-brand-deep">Шаблон за сертификат</h3>
             <p className="text-sm text-muted-foreground">Вметнете PDF или слика. На шаблонот се запишуваат името, презимето и датумот на издавање.</p>
-            <FilePick inputRef={certRef} accept="application/pdf,image/jpeg,image/png,image/webp" />
+            <FilePick inputRef={certRef} accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setTemplateFile(event.target.files?.[0] || null)} />
             <input className={inputClass} placeholder="Ред на сертификатот, на пример: за активно учество" value={wizard.certificateLine} onChange={(event) => setWizard({ ...wizard, certificateLine: event.target.value })} />
             <p className="text-sm text-muted-foreground">Со Објави, обуката влегува кај Обуки: два модула, два теста, евалуација и сертификат.</p>
-          </>
-        )}
+        </div>
         <div className="flex gap-2">
           {step > 1 && <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>Назад</Button>}
           <Button type="submit">{step === 7 ? "Објави" : "Следно"}</Button>

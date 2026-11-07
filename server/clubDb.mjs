@@ -676,6 +676,10 @@ async function handle(method, url, req) {
   if (method === "PATCH" && url === "/api/me") {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
+    if (body.passwordHash && /^sha256:[a-f0-9]{32}:[a-f0-9]{64}$/i.test(body.passwordHash) && body.name == null) {
+      await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [body.passwordHash, auth.user.id]);
+      return { status: 200, body: { ok: true } };
+    }
     const name = text(body.name, 80);
     const title = text(body.title, 120);
     const school = text(body.school, 120);
@@ -900,6 +904,25 @@ async function handle(method, url, req) {
     await pool.query("UPDATE users SET access = $1 WHERE id = $2", [role, user.id]);
     const fresh = await pool.query("SELECT * FROM users WHERE id = $1", [user.id]);
     return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
+  }
+
+  if (method === "DELETE" && accountMatch) {
+    const auth = await requireAdmin(req);
+    if (auth.error) return auth.error;
+    const id = decodeURIComponent(accountMatch[1]);
+    if (auth.user.id === id) return { status: 400, body: { error: "Не можете да ја избришете сопствената сметка." } };
+    const found = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+    if (!found.rows[0]) return { status: 404, body: { error: "Сметката не е пронајдена." } };
+    const user = mapUser(found.rows[0]);
+    if (user.role === "admin") {
+      const admins = await pool.query("SELECT COUNT(*)::int AS count FROM users WHERE access = 'admin'");
+      if (admins.rows[0].count < 2) return { status: 400, body: { error: "Мора да остане барем еден раководител." } };
+    }
+    await pool.query("DELETE FROM sessions WHERE user_id = $1", [id]);
+    await pool.query("DELETE FROM event_signups WHERE user_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM module_passes WHERE user_id = $1", [id]).catch(() => {});
+    await pool.query("DELETE FROM users WHERE id = $1", [id]);
+    return { status: 200, body: { ok: true } };
   }
 
   if (method === "POST" && url === "/api/videos") {

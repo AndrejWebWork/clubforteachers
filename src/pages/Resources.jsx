@@ -105,7 +105,7 @@ export function Resources() {
             </select>
           </div>
           <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Опис" value={draft.detail} onChange={(event) => setDraft({ ...draft, detail: event.target.value })} />
-          <span className="text-sm font-bold text-brand-deep">Насловна слика<input type="file" name="cover" accept="image/jpeg,image/png,image/webp" className="mt-1 block text-sm" /></span>
+          <span className="text-sm font-bold text-brand-deep">Насловна слика<FilePick name="cover" accept="image/jpeg,image/png,image/webp" /></span>
           <FilePick name="file" />
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>

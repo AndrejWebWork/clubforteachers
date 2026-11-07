@@ -6,6 +6,7 @@ import { noticeCategories } from "../src/data.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const calendarCategories = ["Обуки", "Настани", "Работилници", "Рокови", "Други активности"];
+const noticeMonths = ["ЈАНУАРИ", "ФЕВРУАРИ", "МАРТ", "АПРИЛ", "МАЈ", "ЈУНИ", "ЈУЛИ", "АВГУСТ", "СЕПТЕМВРИ", "ОКТОМВРИ", "НОЕМВРИ", "ДЕКЕМВРИ"];
 const kinds = new Set(["notice", "calendar", "forum"]);
 
 function envValue(name) {
@@ -86,6 +87,33 @@ export async function ensureFeeds(pool) {
   await pool.query("CREATE TABLE IF NOT EXISTS app_meta (key text PRIMARY KEY, value text NOT NULL)");
 }
 
+function noticeCalendarParts(day, monthName) {
+  const month = noticeMonths.indexOf(noticeMonth(monthName)) + 1 || 6;
+  const dayNum = Math.min(31, Math.max(1, Number.parseInt(String(day), 10) || 1));
+  const now = new Date();
+  let year = now.getFullYear();
+  if (year < 2026) year = 2026;
+  if (year > 2027) year = 2027;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (new Date(year, month - 1, dayNum) < today && year === 2026) year = 2027;
+  return { year, month, day: dayNum };
+}
+
+async function placeNoticeOnCalendar(pool, notice) {
+  const { year, month, day } = noticeCalendarParts(notice.day, notice.month);
+  const id = `oglas-${notice.id}`;
+  await pool.query(
+    `INSERT INTO calendar_entries (id, day, entry_year, entry_month, title, category, time, location, body, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW())
+     ON CONFLICT (id) DO UPDATE SET day = $2, entry_year = $3, entry_month = $4, title = $5, category = $6, time = $7, location = $8, body = $9`,
+    [id, day, year, month, notice.title, "Рокови", "23:59", "Огласна табла", notice.text || notice.body || notice.title],
+  );
+}
+
+async function dropNoticeFromCalendar(pool, noticeId) {
+  await pool.query("DELETE FROM calendar_entries WHERE id = $1", [`oglas-${noticeId}`]);
+}
+
 function mapNotice(row) {
   return {
     id: row.id,
@@ -117,10 +145,14 @@ function mapCalendar(row) {
 
 export async function listNotices(pool) {
   const { rows } = await pool.query("SELECT * FROM board_notices ORDER BY created_at DESC");
-  return rows.map(mapNotice);
+  const notices = rows.map(mapNotice);
+  for (const notice of notices) await placeNoticeOnCalendar(pool, notice);
+  return notices;
 }
 
 export async function listCalendar(pool) {
+  const notices = await pool.query("SELECT * FROM board_notices");
+  for (const row of notices.rows) await placeNoticeOnCalendar(pool, mapNotice(row));
   const { rows } = await pool.query("SELECT * FROM calendar_entries ORDER BY entry_year, entry_month, day, time");
   return rows.map(mapCalendar);
 }
@@ -163,7 +195,9 @@ export async function addNotice(pool, id, item) {
     [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, createdAt],
   );
   await notify(pool, { column: "notices", title: "Нов оглас", body: item.title, url: "/oglasi" });
-  return { notice: { id, ...item, text: item.body, createdAt } };
+  const notice = { id, ...item, month: noticeMonth(item.month), text: item.body, createdAt };
+  await placeNoticeOnCalendar(pool, notice);
+  return { notice };
 }
 
 export async function updateNotice(pool, id, item) {
@@ -177,12 +211,15 @@ export async function updateNotice(pool, id, item) {
     [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body],
   );
   if (!rows[0]) return { error: "Огласот не е пронајден." };
-  return { notice: mapNotice(rows[0]) };
+  const notice = mapNotice(rows[0]);
+  await placeNoticeOnCalendar(pool, notice);
+  return { notice };
 }
 
 export async function removeNotice(pool, id) {
   const { rowCount } = await pool.query("DELETE FROM board_notices WHERE id = $1", [id]);
   if (!rowCount) return { error: "Огласот не е пронајден." };
+  await dropNoticeFromCalendar(pool, id);
   return { ok: true };
 }
 

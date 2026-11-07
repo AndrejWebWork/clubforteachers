@@ -61,7 +61,18 @@ export function queueCourse({ title, info, module1, module2, questions, template
     await attachMedia(first, { cover: module1.cover, file: module1.file, link: module1.link, module: 1, onProgress });
     onProgress("Се зачувува модул 1…");
     const created = await api.addTraining(first);
-    const second = { ...info, title, blurb: module2.blurb, modulePosition: 2, certificateLine: info.certificateLine, evalQuestions, certificateTemplate: first.certificateTemplate };
+    const second = {
+      ...info,
+      title,
+      blurb: module2.blurb,
+      modulePosition: 2,
+      certificateLine: info.certificateLine,
+      evalQuestions,
+      certificateTemplate: first.certificateTemplate,
+      image: first.image,
+      coverData: first.coverData,
+      coverName: first.coverName,
+    };
     await attachMedia(second, { cover: null, file: module2.file, link: module2.link, module: 2, onProgress });
     onProgress("Се зачувува модул 2…");
     await api.updateTraining(created.training.id, second);

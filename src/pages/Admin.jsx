@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useApp } from "../compositor/AppCompositor";
 import { api } from "../api";
@@ -45,7 +46,7 @@ function downloadLogins(rows) {
 }
 
 export default function Admin() {
-  const { signedIn, isAdmin, authReady } = useApp();
+  const { signedIn, isAdmin, authReady, profile } = useApp();
   const [tab, setTab] = useState("accounts");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -264,17 +265,17 @@ export default function Admin() {
                 if (memberFilter === "сите") return true;
                 return (account.membership === "polno" ? "polno" : "osnovno") === memberFilter;
               }).map((account) => {
-                const profile = account.role === "admin" ? "Раководител" : profiles.includes(account.title) ? account.title : "Наставник";
+                const job = account.role === "admin" ? "Раководител" : profiles.includes(account.title) ? account.title : "Наставник";
                 return (
-                <div key={account.id} className="grid gap-2 border-b py-3 lg:grid-cols-[minmax(0,1fr)_220px_180px] lg:items-center">
+                <div key={account.id} className="grid gap-2 border-b py-3 lg:grid-cols-[minmax(0,1fr)_220px_minmax(180px,1fr)_auto] lg:items-center">
                   <div>
                     <b className="text-brand-deep">{account.name}</b>
-                    <p className="text-sm text-muted-foreground">{account.email} · {account.school} · {profile}</p>
+                    <p className="text-sm text-muted-foreground">{account.email} · {account.school} · {job}</p>
                   </div>
                   <div className="grid gap-2">
                   <select
                     className={inputClass}
-                    value={profile}
+                    value={job}
                     onChange={(event) => run(() => api.setProfile(account.id, event.target.value))}
                   >
                     {profiles.map((item) => <option key={item}>{item}</option>)}
@@ -301,6 +302,19 @@ export default function Admin() {
                     <input name="password" className={inputClass} placeholder="Нова лозинка" minLength={8} />
                     <Button type="submit">Постави</Button>
                   </form>
+                  {account.id !== profile.accountId && (
+                    <button
+                      type="button"
+                      className="row-delete inline-flex items-center gap-1.5"
+                      onClick={() => {
+                        if (!window.confirm(`Да се избрише членот ${account.name}?`)) return;
+                        run(() => api.deleteAccount(account.id));
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Избриши
+                    </button>
+                  )}
                 </div>
               );})}
             </div>

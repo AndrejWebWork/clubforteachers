@@ -44,6 +44,8 @@ export default function Profile() {
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState(profile.photo || "");
   const [certificates, setCertificates] = useState([]);
+  const [passwords, setPasswords] = useState({ next: "", confirm: "" });
+  const [passwordNote, setPasswordNote] = useState("");
   const shareLink = typeof window === "undefined" ? "https://clubforteachers.vercel.app" : window.location.origin;
   const wasEditing = useRef(false);
 
@@ -186,6 +188,55 @@ export default function Profile() {
           </div>
         </section>
         <div className="space-y-5">
+          <section className="panel">
+            <h2 className="section-heading">Смени лозинка</h2>
+            <p className="mb-3 text-sm text-muted-foreground">По администраторска лозинка ставете своја, од најмалку 8 знаци.</p>
+            <form
+              className="grid gap-3"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setPasswordNote("");
+                if (passwords.next.length < 8) {
+                  setPasswordNote("Лозинката мора да има најмалку 8 знаци.");
+                  return;
+                }
+                if (passwords.next !== passwords.confirm) {
+                  setPasswordNote("Двете лозинки мора да се исти.");
+                  return;
+                }
+                try {
+                  await api.changeMyPassword(passwords.next);
+                  setPasswords({ next: "", confirm: "" });
+                  setPasswordNote("Лозинката е сменета.");
+                } catch (reason) {
+                  setPasswordNote(reason.message);
+                }
+              }}
+            >
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={passwords.next}
+                onChange={(event) => setPasswords((current) => ({ ...current, next: event.target.value }))}
+                placeholder="Нова лозинка"
+                className="h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2"
+                minLength={8}
+                required
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={passwords.confirm}
+                onChange={(event) => setPasswords((current) => ({ ...current, confirm: event.target.value }))}
+                placeholder="Повтори ја лозинката"
+                className="h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2"
+                minLength={8}
+                required
+              />
+              {passwordNote && <p className="text-sm font-semibold text-brand-deep">{passwordNote}</p>}
+              <Button type="submit" className="w-fit">Зачувај лозинка</Button>
+            </form>
+          </section>
           <section className="panel">
             <h2 className="section-heading">Сертификати</h2>
             {certificates.length === 0 && <p className="text-sm text-muted-foreground">Сè уште нема издаден сертификат. Се појавува откако ќе завршиш обука, тест и евалуација.</p>}
