@@ -3,7 +3,8 @@ import { ArrowLeft, ArrowRight, Eye, MessageCircle, Trash2 } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
-import { Avatar, Button, Signal } from "../components/ui";
+import { placeCover } from "../media";
+import { Avatar, Button, FilePick, Signal } from "../components/ui";
 
 function mentionNodes(text, people) {
   const sorted = [...people].sort((left, right) => right.length - left.length);
@@ -88,8 +89,11 @@ export function Forum() {
           onSubmit={async (event) => {
             event.preventDefault();
             if (!draft.title.trim() || !draft.body.trim()) return;
+            const cover = event.currentTarget.elements.cover?.files?.[0];
             try {
-              const id = await addTopic(draft);
+              if (!cover) throw new Error("Ставете насловна слика.");
+              const placed = await placeCover(cover);
+              const id = await addTopic({ ...draft, ...placed });
               setWriting(false);
               setError("");
               setDraft({ title: "", body: "" });
@@ -113,6 +117,7 @@ export function Forum() {
             people={people}
             placeholder="Што сакате да прашате или споделите? Пишете @ за да означите колега."
           />
+          <span className="text-sm font-bold text-brand-deep">Насловна слика<FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" /></span>
           {error && <p className="text-sm font-semibold text-brand-urgent">{error}</p>}
           <div className="flex gap-2">
             <Button type="submit">Објави</Button>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import { Button, EuroDate, SuccessPop } from "./ui";
+import { placeCover } from "../media";
+import { Button, EuroDate, FilePick, SuccessPop } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 const kinds = ["Вебинар", "Работилница", "Обука", "Средба"];
@@ -12,6 +13,7 @@ export default function EventAdmin() {
   const [form, setForm] = useState(empty);
   const [done, setDone] = useState(null);
   const [signups, setSignups] = useState([]);
+  const coverRef = useRef(null);
 
   function load() {
     return Promise.all([api.events(), api.eventSignups()]).then(([data, people]) => {
@@ -29,20 +31,25 @@ export default function EventAdmin() {
       <SuccessPop title={done?.title} text={done?.text} onClose={() => setDone(null)} />
       <form
         className="panel grid gap-3"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
           setError("");
           const title = form.title.trim();
-          api.addEvent(form)
-            .then(() => {
-              setForm(empty);
-              setDone({
-                title: "Настанот е додаден",
-                text: `„${title}“ е на Настани и на календарот.`,
-              });
-              return load();
-            })
-            .catch((reason) => setError(reason.message));
+          try {
+            const file = coverRef.current?.files?.[0];
+            if (!file) throw new Error("Ставете насловна слика.");
+            const payload = { ...form, ...await placeCover(file) };
+            await api.addEvent(payload);
+            setForm(empty);
+            if (coverRef.current) coverRef.current.value = "";
+            setDone({
+              title: "Настанот е додаден",
+              text: `„${title}“ е на Настани и на календарот.`,
+            });
+            await load();
+          } catch (reason) {
+            setError(reason.message);
+          }
         }}
       >
         <h2 className="section-heading">Нов настан</h2>
@@ -58,6 +65,10 @@ export default function EventAdmin() {
           <option>Претстои</option>
           <option>Завршен</option>
         </select>
+        <div className="text-sm font-bold text-brand-deep">
+          Насловна слика
+          <FilePick inputRef={coverRef} accept="image/jpeg,image/png,image/webp,image/gif" />
+        </div>
         <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={4} placeholder="Опис" value={form.detail} onChange={(event) => setForm({ ...form, detail: event.target.value })} required />
         {error && <p className="text-sm font-semibold text-brand-urgent">{error}</p>}
         <Button type="submit">Додај настан</Button>

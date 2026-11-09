@@ -18,6 +18,14 @@ const { Pool } = pg;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const uploadDir = path.join(root, "public", "uploads");
 
+async function takeCover(body, required) {
+  const { coverFromBody } = await import("./mediaStore.mjs");
+  const saved = await coverFromBody(body, { root, uploadDir });
+  if (saved.error) return saved;
+  if (required && !saved.url) return { error: "Ставете насловна слика." };
+  return saved;
+}
+
 const categories = [
   "Методика и пракса",
   "Идеи од училишта",
@@ -146,6 +154,7 @@ function mapPost(row) {
     views: row.views,
     time: row.time_label,
     createdAt: iso(row.created_at),
+    cover: row.cover_url || "",
     body: row.body,
     messages: messages.map((item) => ({
       author: item.author,
@@ -205,7 +214,7 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
-const SCHEMA_VERSION = "2026-11-06-cert-eval";
+const SCHEMA_VERSION = "2026-11-09-covers";
 
 async function setup() {
   try {
@@ -223,6 +232,7 @@ async function setup() {
   const { ensureEvents } = await import("./events.mjs");
   await ensureFeeds(pool);
   await ensureEvents(pool);
+  await pool.query("ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_url text NOT NULL DEFAULT ''");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS engagement (
       kind text NOT NULL,
@@ -743,11 +753,13 @@ async function handle(method, url, req) {
     const category = text(body.category, 80) || "Разговор";
     const message = text(body.body, 4000);
     if (!title || !message) return { status: 400, body: { error: "Насловот и текстот се задолжителни." } };
+    const cover = await takeCover(body, true);
+    if (cover.error) return { status: 400, body: { error: cover.error } };
     const postId = id("tema");
     const createdAt = new Date().toISOString();
     await pool.query(
-      "INSERT INTO posts (id, title, category, author, author_id, replies, views, time_label, created_at, body) VALUES ($1,$2,$3,$4,$5,0,0,'штотуку',$6,$7)",
-      [postId, title, category, auth.user.name, auth.user.id, createdAt, message],
+      "INSERT INTO posts (id, title, category, author, author_id, replies, views, time_label, created_at, body, cover_url) VALUES ($1,$2,$3,$4,$5,0,0,'штотуку',$6,$7,$8)",
+      [postId, title, category, auth.user.name, auth.user.id, createdAt, message, cover.url],
     );
     return { status: 201, body: { post: await loadPost(postId) } };
   }
@@ -1074,6 +1086,8 @@ async function handle(method, url, req) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
     const { addEvent } = await import("./events.mjs");
+    const cover = await takeCover(body, true);
+    if (cover.error) return { status: 400, body: { error: cover.error } };
     const result = await addEvent(pool, id("nastan"), {
       title: text(body.title, 140),
       kind: text(body.kind, 40),
@@ -1082,6 +1096,7 @@ async function handle(method, url, req) {
       location: text(body.location, 80),
       status: text(body.status, 20),
       detail: text(body.detail, 1000),
+      cover: cover.url,
     });
     if (result.error) return { status: 400, body: { error: result.error } };
     return { status: 201, body: result };
@@ -1123,6 +1138,8 @@ async function handle(method, url, req) {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
     const feeds = await import("./feeds.mjs");
+    const noticeCover = url === "/api/notices" ? await takeCover(body, true) : null;
+    if (noticeCover?.error) return { status: 400, body: { error: noticeCover.error } };
     const result = url === "/api/notices"
       ? await feeds.addNotice(pool, id("oglas"), {
         title: text(body.title, 140),
@@ -1132,6 +1149,7 @@ async function handle(method, url, req) {
         status: text(body.status, 40) || "НОВО",
         priority: Boolean(body.priority),
         body: text(body.text, 4000),
+        cover: noticeCover.url,
       })
       : await feeds.addCalendarEntry(pool, id("cal"), {
         title: text(body.title, 140),
@@ -1154,6 +1172,8 @@ async function handle(method, url, req) {
     const noticeId = decodeURIComponent(noticeMatch[1]);
     if (!/^[\w-]+$/.test(noticeId)) return { status: 400, body: { error: "Огласот не е пронајден." } };
     const feeds = await import("./feeds.mjs");
+    const noticeCover = method === "PATCH" ? await takeCover(body, false) : { url: "" };
+    if (noticeCover.error) return { status: 400, body: { error: noticeCover.error } };
     const result = method === "DELETE"
       ? await feeds.removeNotice(pool, noticeId)
       : await feeds.updateNotice(pool, noticeId, {
@@ -1164,6 +1184,7 @@ async function handle(method, url, req) {
         status: text(body.status, 40) || "НОВО",
         priority: Boolean(body.priority),
         body: text(body.text, 4000),
+        cover: noticeCover.url,
       });
     if (result.error) return { status: result.error === "Огласот не е пронајден." ? 404 : 400, body: { error: result.error } };
     return { status: 200, body: result };

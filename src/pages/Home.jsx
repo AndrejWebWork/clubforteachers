@@ -21,6 +21,11 @@ function resourceLabel(item) {
   return item.kind || kindFromType[item.type] || item.type || "Ресурс";
 }
 
+function cardImage(url, fallback) {
+  if (url && (String(url).startsWith("/") || String(url).startsWith("https://"))) return url;
+  return fallback;
+}
+
 export default function Home() {
   const { topics, signedIn, profile, catalog } = useApp();
   const givenName = signedIn ? profile.name.trim().split(/\s+/)[0] : "";
@@ -33,12 +38,12 @@ export default function Home() {
   const news = [
     ...notices.map((item) => {
       const stamp = noticeStamp(item.day, item.month);
-      return { to: "/oglasi", title: item.title, date: `${stamp.day} ${stamp.month}`, meta: "Оглас", at: when(item.createdAt), image: images.notice };
+      return { to: "/oglasi", title: item.title, date: `${stamp.day} ${stamp.month}`, meta: "Оглас", at: when(item.createdAt), image: cardImage(item.cover, images.notice) };
     }),
-    ...(catalog.events || []).map((item) => ({ to: "/nastani", title: item.title, date: `${item.day} ${item.month}`, meta: item.kind || "Настан", at: when(item.createdAt) || Date.parse(item.date), image: images.webinar })),
-    ...library.map((item) => ({ to: `/resursi/${item.id}`, title: item.title, date: item.date, meta: "Ресурс", at: when(item.createdAt), image: item.cover || images.resource })),
-    ...(catalog.trainings || []).map((item) => ({ to: `/obuki/${item.id}`, title: item.title, date: item.duration, meta: "Обука", at: when(item.createdAt), image: images.project })),
-    ...topics.map((item) => ({ to: `/forum/${item.id}`, title: item.title, date: item.time, meta: "Форум", at: when(item.createdAt), image: images.forum })),
+    ...(catalog.events || []).map((item) => ({ to: "/nastani", title: item.title, date: `${item.day} ${item.month}`, meta: item.kind || "Настан", at: when(item.createdAt) || Date.parse(item.date), image: cardImage(item.cover, images.webinar) })),
+    ...library.map((item) => ({ to: `/resursi/${item.id}`, title: item.title, date: item.date, meta: "Ресурс", at: when(item.createdAt), image: cardImage(item.cover, images.resource) })),
+    ...(catalog.trainings || []).map((item) => ({ to: `/obuki/${item.id}`, title: item.title, date: item.duration, meta: "Обука", at: when(item.createdAt), image: cardImage(item.image, images.project) })),
+    ...topics.map((item) => ({ to: `/forum/${item.id}`, title: item.title, date: item.time, meta: "Форум", at: when(item.createdAt), image: cardImage(item.cover, images.forum) })),
   ].sort((left, right) => right.at - left.at).slice(0, 4);
   const calendarItems = catalog.calendar;
   const today = calendarToday();

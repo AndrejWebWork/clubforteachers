@@ -337,8 +337,8 @@ export function AppCompositor({ children }) {
         setSelected(new Date(next.getFullYear(), next.getMonth(), day));
         setOpenEventId(null);
       },
-      async addTopic({ title, category, body }) {
-        const data = await api.createPost({ title, category, body });
+      async addTopic({ title, category, body, cover, coverData, coverName }) {
+        const data = await api.createPost({ title, category, body, cover, coverData, coverName });
         setTopics((current) => [data.post, ...current.filter((item) => item.id !== data.post.id)]);
         return data.post.id;
       },

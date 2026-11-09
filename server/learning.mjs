@@ -481,6 +481,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       if (saved.error) return { status: 400, body: { error: saved.error } };
       coverUrl = saved.url;
     }
+    if (!coverUrl) return { status: 400, body: { error: "Ставете насловна слика." } };
     const itemId = fileId("res");
     await pool.query(
       `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, cover_url, size_label, created_at)
@@ -568,14 +569,14 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     if (videoUrl && !videoUrl.startsWith("/uploads/") && !videoUrl.startsWith("/api/media/file/") && !videoUrl.startsWith("/api/media/drive/") && !/^https:\/\//.test(videoUrl)) {
       return { status: 400, body: { error: "Линкот мора да почнува со https://." } };
     }
-    let cover = storedLink(body.image) || (["webinar", "project", "resource"].includes(body.image) ? body.image : "");
+    let cover = storedLink(body.image);
     if (!cover && body.coverData) {
       const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
       if (saved.error) return { status: 400, body: { error: saved.error } };
       cover = saved.url;
     }
-    if (cover && !["webinar", "project", "resource"].includes(cover) && !cover.startsWith("/uploads/") && !cover.startsWith("/api/media/file/") && !/^https:\/\//.test(cover)) {
-      return { status: 400, body: { error: "Cover сликата не е валидна." } };
+    if (!cover || ["webinar", "project", "resource"].includes(cover) || (!cover.startsWith("/uploads/") && !cover.startsWith("/api/media/file/") && !/^https:\/\//.test(cover))) {
+      return { status: 400, body: { error: "Ставете насловна слика." } };
     }
     const trainingId = fileId("obuka");
     await pool.query(

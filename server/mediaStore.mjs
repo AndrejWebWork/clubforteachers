@@ -176,6 +176,35 @@ export async function putBytes(config, key, buffer, contentType = "application/o
   if (!response.ok) throw Object.assign(new Error("remote"), { status: 502 });
 }
 
+export function storedCover(value) {
+  const raw = String(value || "").split("?")[0];
+  if (raw.startsWith("/uploads/")) return raw;
+  if (/^https:\/\//.test(raw)) return raw.slice(0, 2000);
+  const match = raw.match(/^\/api\/media\/file\/([^/?]+)$/);
+  if (!match) return "";
+  try {
+    const key = decodeURIComponent(match[1]);
+    if (!/^(videos|files)\/[\w.\-]+$/.test(key)) return "";
+    return `/api/media/file/${encodeURIComponent(key)}`;
+  } catch {
+    return "";
+  }
+}
+
+export async function coverFromBody(body, { root, uploadDir }) {
+  const cover = storedCover(body?.cover);
+  if (cover) return { url: cover };
+  if (!body?.coverData) return { url: "" };
+  const clean = path.basename(String(body.coverName || "cover.jpg")).replace(/[^\w.\- ()\u0400-\u04FF]+/g, "") || "cover.jpg";
+  const raw = String(body.coverData || "");
+  const base64 = raw.includes(",") ? raw.split(",").pop() : raw;
+  const buffer = Buffer.from(base64, "base64");
+  if (!buffer.length || buffer.length > 8 * 1024 * 1024) return { error: "Сликата мора да биде до 8 MB." };
+  const saved = await persistBytes({ root, uploadDir, name: clean, buffer, contentType: "image/jpeg" });
+  if (saved.error) return saved;
+  return { url: saved.url };
+}
+
 export async function persistBytes({ root, uploadDir, name, buffer, contentType }) {
   const safe = safeName(name);
   const config = mediaConfig(root);

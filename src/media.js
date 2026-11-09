@@ -216,6 +216,14 @@ export async function uploadVideoFile(file, onProgress) {
   return saved.url;
 }
 
+export async function placeCover(file) {
+  if (!file) throw new Error("Ставете насловна слика.");
+  if (!String(file.type || "").startsWith("image/")) throw new Error("Насловната мора да биде слика.");
+  const saved = await placeFile(file);
+  if (saved.url) return { cover: saved.url };
+  return { coverData: saved.data, coverName: file.name };
+}
+
 export async function placeFile(file) {
   if (!file) return {};
   const granted = await ticket("/api/media/file-ticket", file.name || "datoteka");

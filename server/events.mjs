@@ -15,6 +15,7 @@ export async function ensureEvents(pool) {
       detail text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE club_events ADD COLUMN IF NOT EXISTS cover_url text NOT NULL DEFAULT '';
     CREATE TABLE IF NOT EXISTS event_signups (
       event_id text NOT NULL,
       user_id uuid NOT NULL,
@@ -59,6 +60,7 @@ function mapEvent(row) {
     time: String(row.time).slice(0, 5),
     status: row.status,
     detail: row.detail,
+    cover: row.cover_url || "",
     createdAt: row.created_at,
   };
 }
@@ -113,9 +115,9 @@ export async function addEvent(pool, id, item) {
   if (month < 1 || month > 12 || day < 1 || day > 31) return { error: "Датумот не е исправен." };
   if (!item.time || !item.location) return { error: "Потребни се час и место." };
   await pool.query(
-    `INSERT INTO club_events (id, title, kind, event_date, time, location, status, detail, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())`,
-    [id, item.title, item.kind, item.date, item.time, item.location, item.status, item.detail],
+    `INSERT INTO club_events (id, title, kind, event_date, time, location, status, detail, created_at, cover_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), $9)`,
+    [id, item.title, item.kind, item.date, item.time, item.location, item.status, item.detail, item.cover || ""],
   );
   const { rows } = await pool.query("SELECT * FROM club_events WHERE id = $1", [id]);
   const event = mapEvent(rows[0]);

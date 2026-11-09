@@ -34,10 +34,14 @@ export default function Events() {
         {upcoming.map((item) => (
           <article key={item.id} className="panel">
             <div className="flex gap-4">
+              {item.cover ? (
+                <img src={item.cover} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" />
+              ) : (
               <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-brand-soft text-center font-bold text-brand-deep">
                 {item.day}
                 <span className="text-xs">{item.month}</span>
               </div>
+              )}
               <div className="min-w-0">
                 <span className="tag">{item.kind}</span>
                 <h2 className="mt-2 font-bold leading-snug text-brand-deep">{item.title}</h2>

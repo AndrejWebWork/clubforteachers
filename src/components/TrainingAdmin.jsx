@@ -143,6 +143,11 @@ export default function TrainingAdmin() {
         onSubmit={(event) => {
           event.preventDefault();
           if (step < 7) {
+            if (step === 1 && !(coverFile || coverRef.current?.files?.[0])) {
+              setError("Ставете насловна слика.");
+              return;
+            }
+            setError("");
             setStep(step + 1);
             return;
           }
@@ -157,6 +162,12 @@ export default function TrainingAdmin() {
             return;
           }
           const title = wizard.title.trim();
+          const cover = coverFile || coverRef.current?.files?.[0];
+          if (!cover) {
+            setError("Ставете насловна слика.");
+            setStep(1);
+            return;
+          }
           queueCourse({
             title,
             info: {
@@ -200,7 +211,7 @@ export default function TrainingAdmin() {
               <option>Затворена</option>
             </select>
             <div className="text-sm font-bold text-brand-deep">
-              Cover слика
+              Насловна слика
               <FilePick inputRef={coverRef} accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setCoverFile(event.target.files?.[0] || null)} />
             </div>
         </div>

@@ -75,6 +75,7 @@ export async function ensureFeeds(pool) {
     );
     ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_year integer NOT NULL DEFAULT 2026;
     ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_month integer NOT NULL DEFAULT 6;
+    ALTER TABLE board_notices ADD COLUMN IF NOT EXISTS cover_url text NOT NULL DEFAULT '';
     UPDATE board_notices SET month = 'ЈУНИ' WHERE upper(month) = 'ЈУН';
     UPDATE board_notices SET month = 'ЈУЛИ' WHERE upper(month) = 'ЈУЛ';
     CREATE TABLE IF NOT EXISTS feed_seen (
@@ -124,6 +125,7 @@ function mapNotice(row) {
     status: row.status,
     priority: row.priority,
     text: row.body,
+    cover: row.cover_url || "",
     createdAt: row.created_at,
   };
 }
@@ -190,12 +192,12 @@ export async function addNotice(pool, id, item) {
   if (!item.title || !item.body) return { error: "Насловот и текстот се задолжителни." };
   const createdAt = new Date().toISOString();
   await pool.query(
-    `INSERT INTO board_notices (id, title, category, day, month, status, priority, body, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, createdAt],
+    `INSERT INTO board_notices (id, title, category, day, month, status, priority, body, created_at, cover_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, createdAt, item.cover || ""],
   );
   await notify(pool, { column: "notices", title: "Нов оглас", body: item.title, url: "/oglasi" });
-  const notice = { id, ...item, month: noticeMonth(item.month), text: item.body, createdAt };
+  const notice = { id, ...item, month: noticeMonth(item.month), text: item.body, cover: item.cover || "", createdAt };
   await placeNoticeOnCalendar(pool, notice);
   return { notice };
 }
@@ -205,10 +207,11 @@ export async function updateNotice(pool, id, item) {
   if (!item.title || !item.body) return { error: "Насловот и текстот се задолжителни." };
   const { rows } = await pool.query(
     `UPDATE board_notices
-     SET title = $2, category = $3, day = $4, month = $5, status = $6, priority = $7, body = $8
+     SET title = $2, category = $3, day = $4, month = $5, status = $6, priority = $7, body = $8,
+         cover_url = CASE WHEN $9 = '' THEN cover_url ELSE $9 END
      WHERE id = $1
      RETURNING *`,
-    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body],
+    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, item.cover || ""],
   );
   if (!rows[0]) return { error: "Огласот не е пронајден." };
   const notice = mapNotice(rows[0]);

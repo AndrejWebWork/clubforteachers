@@ -3,7 +3,8 @@ import { api } from "../api";
 import { MONTHS } from "../calendar";
 import { useApp } from "../compositor/AppCompositor";
 import { calendarCategories, noticeCategories } from "../data";
-import { Button, EuroDate } from "./ui";
+import { placeCover } from "../media";
+import { Button, EuroDate, FilePick } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 const emptyNotice = { title: "", category: "Повик", day: "", month: "", status: "НОВО", priority: false, text: "" };
@@ -14,6 +15,7 @@ export default function FeedAdmin({ kind }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
   const formRef = useRef(null);
+  const coverRef = useRef(null);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(notice
     ? emptyNotice
@@ -43,23 +45,32 @@ export default function FeedAdmin({ kind }) {
       <form
         ref={formRef}
         className="panel grid gap-3"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
           setError("");
-          const entry = notice ? form : (() => {
-            const [year, month, day] = String(form.date).split("-").map(Number);
-            return { ...form, year, month, day };
-          })();
-          const request = notice
-            ? (editingId ? api.updateNotice(editingId, form) : api.addNotice(form))
-            : api.addCalendar(entry);
-          request
-            .then(() => {
-              if (notice) resetNotice();
-              else setForm({ title: "", category: "Настани", date: "", time: "", location: "", text: "" });
-              return load();
-            })
-            .catch((reason) => setError(reason.message));
+          try {
+            const entry = notice ? { ...form } : (() => {
+              const [year, month, day] = String(form.date).split("-").map(Number);
+              return { ...form, year, month, day };
+            })();
+            if (notice) {
+              const file = coverRef.current?.files?.[0];
+              if (file) Object.assign(entry, await placeCover(file));
+              else if (!editingId) throw new Error("Ставете насловна слика.");
+            }
+            if (notice) {
+              if (editingId) await api.updateNotice(editingId, entry);
+              else await api.addNotice(entry);
+              resetNotice();
+              if (coverRef.current) coverRef.current.value = "";
+            } else {
+              await api.addCalendar(entry);
+              setForm({ title: "", category: "Настани", date: "", time: "", location: "", text: "" });
+            }
+            await load();
+          } catch (reason) {
+            setError(reason.message);
+          }
         }}
       >
         <h2 className="section-heading">{notice ? (editingId ? "Измени оглас" : "Нов оглас") : "Нов термин"}</h2>
@@ -91,6 +102,13 @@ export default function FeedAdmin({ kind }) {
           <input className={inputClass} placeholder="Место" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
         )}
         <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={5} placeholder="Текст" value={form.text} onChange={(event) => setForm({ ...form, text: event.target.value })} required />
+        {notice && (
+          <div className="text-sm font-bold text-brand-deep">
+            Насловна слика
+            <FilePick inputRef={coverRef} accept="image/jpeg,image/png,image/webp,image/gif" />
+            {editingId && <span className="mt-1 block font-semibold text-muted-foreground">Оставете празно за да остане постоечката слика.</span>}
+          </div>
+        )}
         {notice && <p className="text-sm text-muted-foreground">Залепен https линк во текстот се отвора кога наставникот го чита огласот.</p>}
         {notice && (
           <label className="flex items-center gap-2 text-sm font-bold text-brand-deep">
