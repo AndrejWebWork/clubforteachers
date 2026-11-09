@@ -415,6 +415,15 @@ function readBody(req, limit = 6_000_000) {
   });
 }
 
+function imageContentType(name) {
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  return "";
+}
+
 async function handle(method, url, req) {
   await ensureReady();
 
@@ -456,7 +465,7 @@ async function handle(method, url, req) {
     };
   }
 
-  const mediaFile = url.match(/^\/api\/media\/file\/([^/]+)$/);
+  const mediaFile = url.match(/^\/api\/media\/file\/((?:videos|files)\/[^/]+|[^/]+)$/);
   if ((method === "GET" || method === "HEAD") && mediaFile) {
     const auth = await requireUser(req);
     if (auth.error) return auth.error;
@@ -464,10 +473,12 @@ async function handle(method, url, req) {
     const key = fileKey(mediaFile[1]);
     const config = mediaConfig(root);
     if (!key || !config.remote) return { status: 404, body: { error: "Видеото не е пронајдено." } };
+    const filename = key.split("/").pop() || "resurs";
+    const imageType = imageContentType(filename);
     if ((req.url || "").includes("download=1")) {
-      const filename = key.split("/").pop() || "resurs";
       return { attachment: { href: watchUrl(config, key, false), filename } };
     }
+    if (imageType) return { file: { href: watchUrl(config, key, false), type: imageType } };
     return { status: 302, redirect: watchUrl(config, key) };
   }
 
@@ -1290,21 +1301,28 @@ export function clubApiMiddleware() {
         await pipeDriveVideo(req, res, result.driveId);
         return;
       }
-      if (result.attachment) {
-        const upstream = await fetch(result.attachment.href);
+      if (result.attachment || result.file) {
+        const item = result.file || result.attachment;
+        const upstream = await fetch(item.href);
         if (!upstream.ok || !upstream.body) {
           res.statusCode = 502;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.end(JSON.stringify({ error: "Ресурсот не можеше да се преземе." }));
           return;
         }
-        const name = String(result.attachment.filename || "resurs").replace(/[^\w.\- ()\u0400-\u04FF]+/g, "") || "resurs";
+        const name = String(item.filename || "resurs").replace(/[^\w.\- ()\u0400-\u04FF]+/g, "") || "resurs";
         res.statusCode = 200;
-        res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/octet-stream");
-        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+        res.setHeader("Content-Type", item.type || upstream.headers.get("content-type") || "application/octet-stream");
+        if (result.attachment) {
+          res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+        }
         res.setHeader("Cache-Control", "private, no-store");
         const length = upstream.headers.get("content-length");
         if (length) res.setHeader("Content-Length", length);
+        if ((req.method || "GET") === "HEAD") {
+          res.end();
+          return;
+        }
         const { Readable } = await import("node:stream");
         Readable.fromWeb(upstream.body).pipe(res);
         return;

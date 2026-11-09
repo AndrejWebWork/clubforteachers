@@ -25,7 +25,7 @@ export function applySecurityHeaders(req, res) {
       `script-src 'self'${dev ? " 'unsafe-inline' 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https:",
       "frame-src 'self' blob: https://www.youtube.com https://www.youtube-nocookie.com",
       "connect-src 'self' ws: wss: https:",
