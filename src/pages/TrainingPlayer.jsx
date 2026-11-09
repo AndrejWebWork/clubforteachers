@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { driveVideoPath } from "../driveVideo";
-import { evalList } from "../evalQuestions";
+import { evalList, ratingPrompt } from "../evalQuestions";
 import { Button, PageHeader } from "../components/ui";
 
 function formatTime(value) {
@@ -458,14 +458,18 @@ export default function TrainingPlayer() {
             <p className="text-sm font-bold text-brand-deep">Двата теста се положени. Пополнете ја евалуацијата за да се издаде сертификатот.</p>
             {evalList(training).map((question, index) => (
               <label key={`${question.prompt}-${index}`} className="grid gap-1 text-sm font-bold text-brand-deep">
-                {question.prompt}
+                {question.kind === "rating" ? ratingPrompt(question.prompt) : question.prompt}
                 {question.kind === "rating" && (
                   <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm font-medium" value={evalAnswers[index] || "5"} onChange={(event) => setEvalAnswers((current) => {
                     const next = [...current];
                     next[index] = event.target.value;
                     return next;
                   })}>
-                    {["5", "4", "3", "2", "1"].map((value) => <option key={value}>{value}</option>)}
+                    <option value="5">5 - најмногу</option>
+                    <option value="4">4</option>
+                    <option value="3">3</option>
+                    <option value="2">2</option>
+                    <option value="1">1 - најмалку</option>
                   </select>
                 )}
                 {question.kind === "choice" && (

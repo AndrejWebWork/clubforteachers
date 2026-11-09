@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { images } from "../data";
 import { useApp } from "../compositor/AppCompositor";
+import { RATING_SCALE_NOTE } from "../evalQuestions";
 import { Button, PageHeader } from "../components/ui";
 
 const emptyText = "Нема резултати за избраните критериуми.";
@@ -203,9 +204,13 @@ export default function Trainings() {
             >
               <h4 className="font-black text-brand-deep">Евалуација</h4>
               <label className="text-sm font-bold text-brand-deep">
-                Оценка од 1 до 5
+                Оценка од 1 до 5 {RATING_SCALE_NOTE}
                 <select className="mt-1 h-11 w-full rounded-md border bg-card px-3 text-sm" value={rating} onChange={(event) => setRating(event.target.value)}>
-                  {["5", "4", "3", "2", "1"].map((value) => <option key={value}>{value}</option>)}
+                  <option value="5">5 - најмногу</option>
+                  <option value="4">4</option>
+                  <option value="3">3</option>
+                  <option value="2">2</option>
+                  <option value="1">1 - најмалку</option>
                 </select>
               </label>
               <textarea required rows={3} className="rounded-md border bg-card px-3 py-2 text-sm" placeholder="Што беше корисно?" value={comment} onChange={(event) => setComment(event.target.value)} />

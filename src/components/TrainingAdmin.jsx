@@ -36,6 +36,7 @@ function EvalFields({ items, onChange }) {
             <option value="text">Слободен одговор</option>
           </select>
           <input className={inputClass} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => patch(index, { prompt: event.target.value })} />
+          {question.kind === "rating" && <p className="text-sm font-medium text-muted-foreground">(5 - најмногу, 1 - најмалку)</p>}
           {question.kind === "choice" && (question.options || []).map((option, optionIndex) => (
             <input
               key={optionIndex}
