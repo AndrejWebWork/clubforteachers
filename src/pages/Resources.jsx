@@ -26,6 +26,8 @@ export function Resources() {
   const [items, setItems] = useState(catalog.resources);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
   const [source, setSource] = useState("Сите");
   const [kind, setKind] = useState("Сите");
   const [query, setQuery] = useState("");
@@ -60,17 +62,21 @@ export function Resources() {
         action={signedIn ? <Button onClick={() => setOpen((value) => !value)}>Прикачи ресурс</Button> : null}
       />
       {error && <p className="mb-4 text-sm font-semibold text-brand-urgent">{error}</p>}
+      {note && <p className="mb-4 text-sm font-semibold text-brand-deep">{note}</p>}
       {open && (
         <form
           className="panel mb-5 grid gap-3"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (saving) return;
             const form = event.currentTarget;
-            const file = form.elements.file.files?.[0];
+            const file = form.elements.file?.files?.[0];
+            const cover = form.elements.cover?.files?.[0];
+            setSaving(true);
+            setError("");
+            setNote("");
             try {
-              setError("");
               const payload = { ...draft };
-              const cover = form.elements.cover.files?.[0];
               if (cover) {
                 const placedCover = await placeFile(cover);
                 if (placedCover.url) payload.cover = placedCover.url;
@@ -89,12 +95,14 @@ export function Resources() {
               }
               await api.addResource(payload);
               setDraft({ title: "", category: "Материјали", type: "PDF", detail: "" });
-              form.reset();
               setOpen(false);
-              await load();
+              setNote("Ресурсот е прикачен.");
+              await load().catch(() => {});
             } catch (reason) {
               setError(reason.message);
               if (file) uploadFailed(reason.message);
+            } finally {
+              setSaving(false);
             }
           }}
         >
@@ -110,7 +118,7 @@ export function Resources() {
           <span className="text-sm font-bold text-brand-deep">Насловна слика<FilePick name="cover" accept="image/jpeg,image/png,image/webp" /></span>
           <FilePick name="file" />
           <div className="flex gap-2">
-            <Button type="submit">Зачувај</Button>
+            <Button type="submit" disabled={saving}>{saving ? "Се зачувува..." : "Зачувај"}</Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Откажи</Button>
           </div>
         </form>
