@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Button, SuccessPop } from "./ui";
+import { Button, EuroDate, SuccessPop } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 const kinds = ["Вебинар", "Работилница", "Обука", "Средба"];
@@ -51,10 +51,8 @@ export default function EventAdmin() {
         <select className={inputClass} value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
           {kinds.map((item) => <option key={item}>{item}</option>)}
         </select>
-        <div className="grid grid-cols-2 gap-3">
-          <input className={inputClass} type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required />
-          <input className={inputClass} type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required />
-        </div>
+        <EuroDate required value={form.date} onChange={(date) => setForm({ ...form, date })} />
+        <input className={inputClass} type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required />
         <input className={inputClass} placeholder="Место" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required />
         <select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
           <option>Претстои</option>

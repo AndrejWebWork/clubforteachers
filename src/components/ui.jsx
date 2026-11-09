@@ -2,6 +2,80 @@ import { cloneElement, createContext, isValidElement, useContext, useEffect, use
 import { RichText } from "./RichText";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgePlus, CalendarClock, CircleAlert, CircleCheck, DoorOpen, Flag, Hourglass, Search, Siren, Upload } from "lucide-react";
+import { CAL_END, CAL_START, MONTHS } from "../calendar";
+
+const fieldClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
+
+function padDate(value) {
+  return String(value).padStart(2, "0");
+}
+
+export function EuroDate({ value, onChange, minYear = CAL_START, maxYear = CAL_END, required = false }) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const [day, setDay] = useState(match ? Number(match[3]) : "");
+  const [month, setMonth] = useState(match ? Number(match[2]) : "");
+  const [year, setYear] = useState(match ? Number(match[1]) : "");
+  const last = year && month ? new Date(year, month, 0).getDate() : 31;
+  const years = [];
+  for (let next = minYear; next <= maxYear; next += 1) years.push(next);
+
+  useEffect(() => {
+    const next = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (next) {
+      setYear(Number(next[1]));
+      setMonth(Number(next[2]));
+      setDay(Number(next[3]));
+      return;
+    }
+    if (!value) {
+      setYear("");
+      setMonth("");
+      setDay("");
+    }
+  }, [value]);
+
+  function setPart(nextDay, nextMonth, nextYear) {
+    const days = nextYear && nextMonth ? new Date(nextYear, nextMonth, 0).getDate() : 31;
+    const safeDay = nextDay ? Math.min(nextDay, days) : "";
+    setDay(safeDay);
+    setMonth(nextMonth || "");
+    setYear(nextYear || "");
+    if (safeDay && nextMonth && nextYear) onChange(`${nextYear}-${padDate(nextMonth)}-${padDate(safeDay)}`);
+    else onChange("");
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <label className="grid min-w-0 gap-1">
+        <span className="text-xs font-bold text-brand-deep">Ден</span>
+        <select className={fieldClass} required={required} value={day} onChange={(event) => setPart(Number(event.target.value), month, year)}>
+          <option value="">Ден</option>
+          {Array.from({ length: last }, (_, index) => index + 1).map((item) => (
+            <option key={item} value={item}>{item}</option>
+          ))}
+        </select>
+      </label>
+      <label className="grid min-w-0 gap-1">
+        <span className="text-xs font-bold text-brand-deep">Месец</span>
+        <select className={fieldClass} required={required} value={month} onChange={(event) => setPart(day, Number(event.target.value), year)}>
+          <option value="">Месец</option>
+          {MONTHS.map((name, index) => (
+            <option key={name} value={index + 1}>{name}</option>
+          ))}
+        </select>
+      </label>
+      <label className="grid min-w-0 gap-1">
+        <span className="text-xs font-bold text-brand-deep">Година</span>
+        <select className={fieldClass} required={required} value={year} onChange={(event) => setPart(day, month, Number(event.target.value))}>
+          <option value="">Година</option>
+          {years.map((item) => (
+            <option key={item} value={item}>{item}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
 
 const ActionContext = createContext(null);
 

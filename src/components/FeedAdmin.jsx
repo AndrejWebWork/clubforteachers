@@ -3,7 +3,7 @@ import { api } from "../api";
 import { MONTHS } from "../calendar";
 import { useApp } from "../compositor/AppCompositor";
 import { calendarCategories, noticeCategories } from "../data";
-import { Button } from "./ui";
+import { Button, EuroDate } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 const emptyNotice = { title: "", category: "Повик", day: "", month: "", status: "НОВО", priority: false, text: "" };
@@ -80,10 +80,10 @@ export default function FeedAdmin({ kind }) {
             <input className={inputClass} placeholder="Месец" value={form.month} onChange={(event) => setForm({ ...form, month: event.target.value })} required />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <input className={inputClass} type="date" min="2026-01-01" max="2027-12-31" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required />
+          <>
+            <EuroDate required value={form.date} onChange={(date) => setForm({ ...form, date })} />
             <input className={inputClass} placeholder="Час" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required />
-          </div>
+          </>
         )}
         {notice ? (
           <input className={inputClass} placeholder="Ознака, на пр. НОВО" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} />
