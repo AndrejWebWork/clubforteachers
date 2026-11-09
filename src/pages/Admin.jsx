@@ -291,12 +291,13 @@ export default function Admin() {
                   </div>
                   <form className="flex gap-2" onSubmit={(event) => {
                     event.preventDefault();
-                    const password = new FormData(event.currentTarget).get("password");
+                    const form = event.currentTarget;
+                    const password = new FormData(form).get("password");
                     if (!password || String(password).length < 8) return;
                     run(async () => {
                       await api.setPassword(account.id, String(password));
                       setFreshPassword({ email: account.email, password: String(password) });
-                      event.currentTarget.reset();
+                      form.reset();
                     });
                   }}>
                     <input name="password" className={inputClass} placeholder="Нова лозинка" minLength={8} />

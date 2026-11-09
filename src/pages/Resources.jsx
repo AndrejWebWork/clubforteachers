@@ -65,10 +65,12 @@ export function Resources() {
           className="panel mb-5 grid gap-3"
           onSubmit={async (event) => {
             event.preventDefault();
-            const file = event.currentTarget.elements.file.files?.[0];
+            const form = event.currentTarget;
+            const file = form.elements.file.files?.[0];
             try {
+              setError("");
               const payload = { ...draft };
-              const cover = event.currentTarget.elements.cover.files?.[0];
+              const cover = form.elements.cover.files?.[0];
               if (cover) {
                 const placedCover = await placeFile(cover);
                 if (placedCover.url) payload.cover = placedCover.url;
@@ -87,7 +89,7 @@ export function Resources() {
               }
               await api.addResource(payload);
               setDraft({ title: "", category: "Материјали", type: "PDF", detail: "" });
-              event.currentTarget.reset();
+              form.reset();
               setOpen(false);
               await load();
             } catch (reason) {
