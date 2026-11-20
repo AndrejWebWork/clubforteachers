@@ -992,6 +992,8 @@ async function handle(method, url, req) {
       return { status: 400, body: { error: "Овој вид датотека не е дозволен." } };
     }
     const mime = text(body.mime, 80) || "application/octet-stream";
+    const cover = await takeCover(body, false);
+    if (cover.error) return { status: 400, body: { error: cover.error } };
     let linked = "";
     try {
       const match = String(body.url || "").match(/^\/api\/media\/file\/([^/?]+)$/);
@@ -1009,9 +1011,9 @@ async function handle(method, url, req) {
         [fileId, name, mime, size, decodeURIComponent(linked.split("/").pop()), linked, createdAt],
       );
       await pool.query(
-        `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, size_label, created_at)
-         VALUES ($1,'resource',$2,$3,$4,$5,$2,$6,'', NOW())`,
-        [`res-${fileId}`, resourceTitle, pickedKind, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), resourceAuthor, linked],
+        `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, cover_url, size_label, created_at)
+         VALUES ($1,'resource',$2,$3,$4,$5,$2,$6,$7,'', NOW())`,
+        [`res-${fileId}`, resourceTitle, pickedKind, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), resourceAuthor, linked, cover.url || ""],
       );
       return { status: 201, body: { attachment: { id: fileId, name, mime, size, url: linked, createdAt } } };
     }
@@ -1031,9 +1033,9 @@ async function handle(method, url, req) {
       [fileId, name, mime, buffer.length, kept.key || path.basename(kept.url), kept.url, createdAt],
     );
     await pool.query(
-      `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, size_label, created_at)
-       VALUES ($1,'resource',$2,$3,$4,$5,$2,$6,'', NOW())`,
-      [`res-${fileId}`, resourceTitle, pickedKind, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), resourceAuthor, kept.url],
+      `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, cover_url, size_label, created_at)
+       VALUES ($1,'resource',$2,$3,$4,$5,$2,$6,$7,'', NOW())`,
+      [`res-${fileId}`, resourceTitle, pickedKind, (name.split(".").pop() || "PDF").toUpperCase().slice(0, 8), resourceAuthor, kept.url, cover.url || ""],
     );
     return { status: 201, body: { attachment: { id: fileId, name, mime, size: buffer.length, url: kept.url, createdAt } } };
   }

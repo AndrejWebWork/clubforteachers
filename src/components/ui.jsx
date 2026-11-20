@@ -176,7 +176,7 @@ export function UploadToast() {
   );
 }
 
-export function FilePick({ inputRef, onChange, ...props }) {
+export function FilePick({ inputRef, onChange, buttonLabel = "Прикачи фајл", ...props }) {
   const localRef = useRef(null);
   const [picked, setPicked] = useState("");
 
@@ -218,7 +218,7 @@ export function FilePick({ inputRef, onChange, ...props }) {
       />
       <button type="button" className="file-pick-btn" onClick={() => localRef.current?.click()}>
         <Upload className="h-4 w-4" />
-        Прикачи фајл
+        {buttonLabel}
       </button>
       {picked && <span className="file-pick-name">{picked}</span>}
     </div>

@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useApp } from "../compositor/AppCompositor";
 import { api } from "../api";
-import { placeFile, uploadStatus, uploadVideoFile } from "../media";
+import { placeCover, placeFile, uploadStatus, uploadVideoFile } from "../media";
 import TrainingAdmin from "../components/TrainingAdmin";
 import FeedAdmin from "../components/FeedAdmin";
 import EventAdmin from "../components/EventAdmin";
@@ -420,6 +420,7 @@ export default function Admin() {
             onSubmit={(event) => {
               event.preventDefault();
               const file = event.currentTarget.elements.file.files?.[0];
+              const cover = event.currentTarget.elements.cover?.files?.[0];
               if (!file) return;
               if (file.size > 4 * 1024 * 1024) {
                 setError("Прилогот мора да биде до 4 MB.");
@@ -436,6 +437,7 @@ export default function Admin() {
                   source: fileForm.source,
                   mime: file.type,
                   ...(placed.url ? { url: placed.url, size: placed.size } : { data: placed.data }),
+                  ...(cover ? await placeCover(cover) : {}),
                 });
                 form.reset();
                 setFileForm({ title: "", kind: "Прирачник", source: "LEAD" });
@@ -460,6 +462,7 @@ export default function Admin() {
               </select>
             </Field>
             <FilePick name="file" required />
+            <FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" buttonLabel="Прикачи насловна слика" />
             <Button type="submit">Прикачи</Button>
           </form>
           <section className="panel">
