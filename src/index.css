@@ -1078,21 +1078,6 @@ button.cal-item:hover {
 .pin-date small { color: var(--brand-urgent); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 .pin-date b { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
 .pin-date b span { margin-left: 0.2rem; font-size: 0.78rem; font-weight: 800; }
-.pin-thumb {
-  width: 4.75rem;
-  height: 4.75rem;
-  flex-shrink: 0;
-  overflow: hidden;
-  border-radius: 0.35rem;
-  box-shadow: 1px 2px 0 color-mix(in oklab, var(--brand-deep) 14%, transparent);
-  transform: rotate(1.5deg);
-}
-.pin-thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 .month-cell {
   border: 1px solid var(--border);
   background: var(--card);

@@ -26,14 +26,10 @@ export default function Notices() {
           return (
           <article key={item.id || item.title} className={`pin-note ${item.priority ? "priority" : ""}`}>
             <span className="push-pin" aria-hidden="true" />
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <span className="pin-date"><small>Рок за пријава</small><b>{stamp.day} <span>{stamp.month}</span></b></span>
-              {item.cover && (
-                <span className="pin-thumb">
-                  <img src={item.cover} alt="" />
-                </span>
-              )}
             </div>
+            {item.cover && <img src={item.cover} alt="" className="mt-2 h-28 w-full rounded-md object-cover" />}
             <h3 className="mt-2 text-sm font-black leading-snug text-brand-deep">{item.title}</h3>
             <p className="mt-1 line-clamp-3 break-words text-xs text-muted-foreground"><RichText text={item.text} /></p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
