@@ -76,13 +76,14 @@ export function Resources() {
             setError("");
             setNote("");
             try {
-              if (!cover) throw new Error("Ставете насловна слика.");
               const payload = { ...draft };
-              const placedCover = await placeFile(cover);
-              if (placedCover.url) payload.cover = placedCover.url;
-              else {
-                payload.coverData = placedCover.data;
-                payload.coverName = cover.name;
+              if (cover) {
+                const placedCover = await placeFile(cover);
+                if (placedCover.url) payload.cover = placedCover.url;
+                else {
+                  payload.coverData = placedCover.data;
+                  payload.coverName = cover.name;
+                }
               }
               if (file) {
                 const placed = await placeFile(file);
@@ -114,8 +115,8 @@ export function Resources() {
             </select>
           </div>
           <textarea className="rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Опис" value={draft.detail} onChange={(event) => setDraft({ ...draft, detail: event.target.value })} />
-          <span className="text-sm font-bold text-brand-deep">Насловна слика (задолжителна)<FilePick name="cover" accept="image/jpeg,image/png,image/webp" /></span>
-          <FilePick name="file" />
+          <span className="text-sm font-bold text-brand-deep">Насловна слика (опционално)<FilePick name="cover" accept="image/jpeg,image/png,image/webp" /></span>
+          <span className="text-sm font-bold text-brand-deep">Документ<FilePick name="file" /></span>
           <div className="flex gap-2">
             <Button type="submit" disabled={saving}>{saving ? "Се зачувува..." : "Зачувај"}</Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Откажи</Button>

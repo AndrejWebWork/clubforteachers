@@ -481,7 +481,6 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       if (saved.error) return { status: 400, body: { error: saved.error } };
       coverUrl = saved.url;
     }
-    if (!coverUrl) return { status: 400, body: { error: "Ставете насловна слика." } };
     const itemId = fileId("res");
     await pool.query(
       `INSERT INTO library_items (id, kind, title, category, type, author, detail, file_url, cover_url, size_label, created_at)
