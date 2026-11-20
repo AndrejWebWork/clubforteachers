@@ -395,6 +395,7 @@ export async function listDocuments(pool) {
     featured: row.featured,
     body: row.detail,
     fileUrl: row.file_url,
+    cover: row.cover_url || "",
     downloads: row.downloads,
   }));
 }
@@ -531,13 +532,19 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
       fileUrl = saved.url;
       sizeLabel = saved.size > 1024 * 1024 ? `${(saved.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(saved.size / 1024))} KB`;
     }
+    let coverUrl = storedLink(body.cover) || (body.cover && String(body.cover).startsWith("/api/media/file/") ? String(body.cover).split("?")[0] : "");
+    if (!coverUrl && body.coverData) {
+      const saved = await saveUpload(uploadDir, body.coverName || "cover.jpg", body.coverData, root);
+      if (saved.error) return { status: 400, body: { error: saved.error } };
+      coverUrl = saved.url;
+    }
     const itemId = fileId("dok");
     await pool.query(
-      `INSERT INTO library_items (id, kind, title, category, type, author, detail, folder, file_url, size_label, created_at)
-       VALUES ($1,'document',$2,$3,$4,$5,$6,$7,$8,$9, NOW())`,
-      [itemId, title, folder, type, auth.user.name, detail || title, folder, fileUrl, sizeLabel],
+      `INSERT INTO library_items (id, kind, title, category, type, author, detail, folder, file_url, cover_url, size_label, created_at)
+       VALUES ($1,'document',$2,$3,$4,$5,$6,$7,$8,$9,$10, NOW())`,
+      [itemId, title, folder, type, auth.user.name, detail || title, folder, fileUrl, coverUrl || "", sizeLabel],
     );
-    return { status: 201, body: { document: { id: itemId, title, type, folder, size: sizeLabel, date: "денес", featured: false, body: detail, fileUrl, downloads: 0 } } };
+    return { status: 201, body: { document: { id: itemId, title, type, folder, size: sizeLabel, date: "денес", featured: false, body: detail, fileUrl, cover: coverUrl || "", downloads: 0 } } };
   }
 
   const documentDownload = url.match(/^\/api\/documents\/([^/]+)\/download$/);

@@ -3,7 +3,7 @@ import { FileSpreadsheet, FileText, ScrollText, Stamp } from "lucide-react";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { downloadText } from "../download";
-import { placeFile } from "../media";
+import { placeCover, placeFile } from "../media";
 import { Button, FilePick, PageHeader, uploadFailed } from "../components/ui";
 
 const folders = ["Водич за клубот", "Правила за користење", "Правилници"];
@@ -65,8 +65,10 @@ export default function Documents({ embedded = false }) {
             event.preventDefault();
             if (!draft.title.trim()) return;
             const file = event.currentTarget.elements.file.files?.[0];
+            const cover = event.currentTarget.elements.cover?.files?.[0];
             try {
               const payload = { ...draft };
+              if (cover) Object.assign(payload, await placeCover(cover));
               if (file) {
                 const placed = await placeFile(file);
                 payload.name = placed.name;
@@ -108,7 +110,8 @@ export default function Documents({ embedded = false }) {
             className="rounded-md border bg-card px-3 py-2 text-sm"
             placeholder="Краток опис"
           />
-          <FilePick name="file" />
+          <span className="text-sm font-bold text-brand-deep">Насловна слика (опционално)<FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" /></span>
+          <span className="text-sm font-bold text-brand-deep">Документ<FilePick name="file" /></span>
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>
             <Button type="button" variant="outline" onClick={() => setUploading(false)}>Откажи</Button>
@@ -129,7 +132,11 @@ export default function Documents({ embedded = false }) {
           {items.map((item) => (
             <article key={`${item.title}-${item.date}`} className="document-card group">
               <div className="flex items-start justify-between">
-                <span className={`file-icon ${item.type.toLowerCase()}`}><FileIcon type={item.type} /></span>
+                {item.cover ? (
+                  <img src={item.cover} alt="" className="h-16 w-16 rounded-md object-cover" />
+                ) : (
+                  <span className={`file-icon ${item.type.toLowerCase()}`}><FileIcon type={item.type} /></span>
+                )}
                 <span className="file-badge">{item.type}</span>
               </div>
               <p className="mt-5 text-xs font-black uppercase text-primary">{item.folder}</p>
