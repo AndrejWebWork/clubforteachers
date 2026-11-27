@@ -1720,11 +1720,10 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
 }
 .club-socials {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.4rem;
   margin: 0.35rem 0 0.2rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.55rem;
-  background: color-mix(in srgb, var(--brand-yellow) 18%, transparent);
+  padding: 0.2rem 0.1rem;
+  background: transparent;
 }
 .club-socials p {
   margin: 0;
@@ -1732,7 +1731,7 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--brand-deep);
+  color: color-mix(in srgb, white 88%, transparent);
 }
 .club-social-icons {
   display: flex;
@@ -1746,12 +1745,14 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   width: 2.35rem;
   height: 2.35rem;
   border-radius: 999px;
-  background: var(--brand-deep);
-  color: #fff;
+  background: #fff;
+  color: var(--brand-deep);
   text-decoration: none;
 }
 .club-social-icons a:hover {
-  background: color-mix(in srgb, var(--brand-deep) 82%, white);
+  background: #fff;
+  color: var(--brand-deep);
+  filter: brightness(0.94);
 }
 .club-social-icons svg {
   display: block;
@@ -1902,18 +1903,19 @@ button:not(.month-cell):not(.week-col):not(.pill):not(.sort-chip):not(.cal-item)
   width: 2.35rem;
   height: 2.35rem;
   padding: 0;
-  border: 0;
-  background-color: var(--brand-deep);
+  border: 1px solid var(--border);
+  background-color: #fff;
   background-image: none;
-  color: #fff;
+  color: var(--brand-deep);
   transform: none;
 }
 .landing-aside .club-socials {
-  background: color-mix(in srgb, white 12%, transparent);
+  background: transparent;
+  padding: 0;
 }
-.landing-aside .club-socials p { color: var(--brand-yellow); }
+.landing-aside .club-socials p { color: color-mix(in srgb, white 88%, transparent); }
 .landing-aside .club-social-icons a {
-  background: var(--brand-yellow);
+  background: #fff;
   color: var(--brand-deep);
 }
 .landing-aside {
