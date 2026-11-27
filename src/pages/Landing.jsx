@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { Button } from "../components/ui";
-import ClubSocials, { clubFacebook, clubInstagram } from "../components/ClubSocials";
+import ClubSocials, { ClubSocialIcons } from "../components/ClubSocials";
 
 const shareLink = "https://clubforteachers.vercel.app";
 
@@ -53,8 +53,7 @@ export default function Landing() {
           </p>
           <div className="landing-links">
             <a href="https://lead.org.mk/" target="_blank" rel="noreferrer">Веб-страница на платформата</a>
-            <a href={clubFacebook} target="_blank" rel="noreferrer">Facebook на Клубот</a>
-            <a href={clubInstagram} target="_blank" rel="noreferrer">Instagram на Клубот</a>
+            <ClubSocialIcons />
             <a href={`viber://forward?text=${encodeURIComponent(`Клуб на наставници ${shareLink}`)}`}>Viber</a>
             <button type="button" onClick={() => setContactOpen(true)}>
               <Mail className="mr-1 inline h-4 w-4" /> Контакт
