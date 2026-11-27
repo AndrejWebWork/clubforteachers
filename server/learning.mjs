@@ -523,6 +523,7 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const type = text(body.type, 12) || "PDF";
     const folder = text(body.folder, 80) || "Други документи";
     const detail = text(body.body, 2000);
+    if (!["PDF", "DOCX", "XLSX", "VIDEO"].includes(type)) return { status: 400, body: { error: "Изберете PDF, DOCX, XLSX или видео." } };
     if (!title) return { status: 400, body: { error: "Насловот е задолжителен." } };
     let fileUrl = storedLink(body.url);
     let sizeLabel = body.size ? (Number(body.size) > 1024 * 1024 ? `${(Number(body.size) / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(Number(body.size) / 1024))} KB`) : "12 KB";
@@ -1039,7 +1040,11 @@ export async function handleLearning({ pool, method, url, req, body, requireUser
     const description = text(body.description, 2000);
     const joinInfo = text(body.joinInfo, 1000);
     const minutes = Number(body.minutes);
-    const startsAt = new Date(body.startsAt);
+    const date = text(body.date, 10);
+    const time = text(body.time, 8) || "10:00";
+    const startsAt = /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? new Date(`${date}T${time.length === 5 ? `${time}:00` : time}`)
+      : new Date(body.startsAt);
     if (!title || !description || !joinInfo) return { status: 400, body: { error: "Насловот, описот и информациите за вклучување се задолжителни." } };
     if (!Number.isInteger(minutes) || minutes < 1) return { status: 400, body: { error: "Внесете траење во минути." } };
     if (Number.isNaN(startsAt.getTime())) return { status: 400, body: { error: "Внесете датум и време." } };

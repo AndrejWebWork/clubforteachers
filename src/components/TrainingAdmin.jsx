@@ -35,7 +35,7 @@ function EvalFields({ items, onChange }) {
             <option value="choice">Избор</option>
             <option value="text">Слободен одговор</option>
           </select>
-          <input className={inputClass} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => patch(index, { prompt: event.target.value })} />
+          <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => patch(index, { prompt: event.target.value })} />
           {question.kind === "rating" && <p className="text-sm font-medium text-muted-foreground">(5 - најмногу, 1 - најмалку)</p>}
           {question.kind === "choice" && (question.options || []).map((option, optionIndex) => (
             <input
@@ -140,6 +140,10 @@ export default function TrainingAdmin() {
       <form
         ref={wizardFormRef}
         className="panel grid gap-3"
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.target.tagName === "TEXTAREA") return;
+          event.preventDefault();
+        }}
         onSubmit={(event) => {
           event.preventDefault();
           if (step < 7) {
@@ -233,7 +237,7 @@ export default function TrainingAdmin() {
             <h3 className="font-bold text-brand-deep">Тест · модул {step === 4 ? 1 : 2} · 10 прашања</h3>
             {(step === 4 ? wizard.q1 : wizard.q2).map((question, index) => (
               <fieldset key={index} className="grid gap-2 rounded-md border p-3">
-                <input className={inputClass} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => {
+                <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder={`Прашање ${index + 1}`} value={question.prompt} onChange={(event) => {
                   const key = step === 4 ? "q1" : "q2";
                   setWizard({ ...wizard, [key]: wizard[key].map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) });
                 }} />
@@ -462,6 +466,10 @@ export default function TrainingAdmin() {
           ref={quizRef}
           tabIndex={-1}
           className="panel edit-arrive grid gap-4"
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.target.tagName === "TEXTAREA") return;
+            event.preventDefault();
+          }}
           onSubmit={async (event) => {
             event.preventDefault();
             setQuizNote("");
@@ -488,7 +496,7 @@ export default function TrainingAdmin() {
                 <option value={1}>Модул 1</option>
                 <option value={2}>Модул 2</option>
               </select>
-              <input className={inputClass} placeholder="Прашање" value={question.prompt} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item))} />
+              <textarea className="min-h-20 rounded-md border bg-card px-3 py-2 text-sm" rows={3} placeholder="Прашање" value={question.prompt} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item))} />
               {question.options.map((option, optionIndex) => (
                 <label key={optionIndex} className="flex items-center gap-2">
                   <input type="radio" name={`correct-${index}`} checked={question.correctIndex === optionIndex} onChange={() => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, correctIndex: optionIndex } : item))} />

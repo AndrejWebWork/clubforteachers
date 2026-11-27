@@ -5,7 +5,7 @@ import { api } from "../api";
 import { images } from "../data";
 import { useApp } from "../compositor/AppCompositor";
 import { RATING_SCALE_NOTE } from "../evalQuestions";
-import { Button, PageHeader } from "../components/ui";
+import { Button, EuroDate, PageHeader } from "../components/ui";
 
 const emptyText = "Нема резултати за избраните критериуми.";
 
@@ -45,7 +45,7 @@ export default function Trainings() {
   const [rating, setRating] = useState("5");
   const [comment, setComment] = useState("");
   const [savedEval, setSavedEval] = useState("");
-  const [draft, setDraft] = useState({ title: "", description: "", startsAt: "", minutes: "90", joinInfo: "" });
+  const [draft, setDraft] = useState({ title: "", description: "", date: "", time: "10:00", minutes: "90", joinInfo: "" });
 
   function loadMasters() {
     return api.masterclasses().then((data) => {
@@ -146,8 +146,15 @@ export default function Trainings() {
             onSubmit={async (event) => {
               event.preventDefault();
               try {
-                await api.addMasterclass({ ...draft, minutes: Number(draft.minutes), startsAt: new Date(draft.startsAt).toISOString() });
-                setDraft({ title: "", description: "", startsAt: "", minutes: "90", joinInfo: "" });
+                await api.addMasterclass({
+                  title: draft.title,
+                  description: draft.description,
+                  joinInfo: draft.joinInfo,
+                  minutes: Number(draft.minutes),
+                  date: draft.date,
+                  time: draft.time,
+                });
+                setDraft({ title: "", description: "", date: "", time: "10:00", minutes: "90", joinInfo: "" });
                 await loadMasters();
               } catch (reason) {
                 setError(reason.message);
@@ -157,10 +164,12 @@ export default function Trainings() {
             <h3 className="font-black text-brand-deep">Нов мастерклас</h3>
             <input required className="h-11 rounded-md border bg-card px-3 text-sm" placeholder="Наслов" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
             <textarea required rows={3} className="rounded-md border bg-card px-3 py-2 text-sm" placeholder="Опис" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input required type="datetime-local" className="h-11 rounded-md border bg-card px-3 text-sm" value={draft.startsAt} onChange={(event) => setDraft({ ...draft, startsAt: event.target.value })} />
-              <input required type="number" min="1" className="h-11 rounded-md border bg-card px-3 text-sm" value={draft.minutes} onChange={(event) => setDraft({ ...draft, minutes: event.target.value })} />
+            <div>
+              <span className="mb-1 block text-sm font-bold text-brand-deep">Датум и време</span>
+              <EuroDate required value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
+              <input required type="time" className="mt-2 h-11 w-full rounded-md border bg-card px-3 text-sm" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} />
             </div>
+            <input required type="number" min="1" className="h-11 rounded-md border bg-card px-3 text-sm" value={draft.minutes} onChange={(event) => setDraft({ ...draft, minutes: event.target.value })} />
             <textarea required rows={2} className="rounded-md border bg-card px-3 py-2 text-sm" placeholder="Информации за вклучување" value={draft.joinInfo} onChange={(event) => setDraft({ ...draft, joinInfo: event.target.value })} />
             <Button type="submit">Зачувај мастерклас</Button>
           </form>

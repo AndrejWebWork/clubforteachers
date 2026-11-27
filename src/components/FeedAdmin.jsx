@@ -4,10 +4,18 @@ import { MONTHS } from "../calendar";
 import { useApp } from "../compositor/AppCompositor";
 import { calendarCategories, noticeCategories } from "../data";
 import { placeCover } from "../media";
-import { Button, EuroDate, FilePick } from "./ui";
+import { Button, EuroDate, FilePick, OtherSelect } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
-const emptyNotice = { title: "", category: "Повик", day: "", month: "", status: "НОВО", priority: false, text: "" };
+const emptyNotice = { title: "", category: "Повик", eventDate: "", eventTime: "10:00", deadlineDate: "", status: "НОВО", priority: false, text: "" };
+
+function noticeDeadline(item) {
+  if (item.deadlineDate) return item.deadlineDate;
+  const index = MONTHS.findIndex((name) => name.toLocaleUpperCase("mk") === String(item.month || "").trim().toLocaleUpperCase("mk"));
+  if (index < 0) return "";
+  const day = String(item.day || "").padStart(2, "0");
+  return `2026-${String(index + 1).padStart(2, "0")}-${day}`;
+}
 
 export default function FeedAdmin({ kind }) {
   const notice = kind === "notice";
@@ -57,6 +65,14 @@ export default function FeedAdmin({ kind }) {
               const file = coverRef.current?.files?.[0];
               if (file) Object.assign(entry, await placeCover(file));
               else if (!editingId) throw new Error("Ставете насловна слика.");
+              if (form.deadlineDate) {
+                const [year, month, day] = form.deadlineDate.split("-");
+                entry.day = String(Number(day));
+                entry.month = MONTHS[Number(month) - 1];
+                entry.deadlineDate = form.deadlineDate;
+              }
+              entry.eventDate = form.eventDate;
+              entry.eventTime = form.eventTime;
             }
             if (notice) {
               if (editingId) await api.updateNotice(editingId, entry);
@@ -82,14 +98,25 @@ export default function FeedAdmin({ kind }) {
             : "Се појавува во календарот и стигнува како известување до сите."}
         </p>
         <input className={inputClass} placeholder="Наслов" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-        <select className={inputClass} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
-          {(notice ? noticeCategories : calendarCategories).map((item) => <option key={item}>{item}</option>)}
-        </select>
+        <OtherSelect
+          className={inputClass}
+          options={notice ? noticeCategories : calendarCategories}
+          value={form.category}
+          onChange={(category) => setForm({ ...form, category })}
+          placeholder="Внесете категорија"
+        />
         {notice ? (
-          <div className="grid grid-cols-2 gap-3">
-            <input className={inputClass} placeholder="Ден" value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value })} required />
-            <input className={inputClass} placeholder="Месец" value={form.month} onChange={(event) => setForm({ ...form, month: event.target.value })} required />
-          </div>
+          <>
+            <div>
+              <span className="mb-1 block text-sm font-bold text-brand-deep">Датум и време на настанот</span>
+              <EuroDate required value={form.eventDate} onChange={(eventDate) => setForm({ ...form, eventDate })} />
+              <input className={`${inputClass} mt-2`} type="time" value={form.eventTime} onChange={(event) => setForm({ ...form, eventTime: event.target.value })} required />
+            </div>
+            <div>
+              <span className="mb-1 block text-sm font-bold text-brand-deep">Рок за пријава</span>
+              <EuroDate required value={form.deadlineDate} onChange={(deadlineDate) => setForm({ ...form, deadlineDate })} />
+            </div>
+          </>
         ) : (
           <>
             <EuroDate required value={form.date} onChange={(date) => setForm({ ...form, date })} />
@@ -140,8 +167,9 @@ export default function FeedAdmin({ kind }) {
                       setForm({
                         title: item.title,
                         category: item.category,
-                        day: item.day,
-                        month: item.month,
+                        eventDate: item.eventDate || "",
+                        eventTime: item.eventTime || "10:00",
+                        deadlineDate: noticeDeadline(item),
                         status: item.status,
                         priority: Boolean(item.priority),
                         text: item.text || "",

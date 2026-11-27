@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, Clock, MapPin } from "lucide-react";
+import { MONTHS } from "../calendar";
+
+function deadlineLabel(iso) {
+  const match = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  return `${Number(match[3])} ${MONTHS[Number(match[2]) - 1] || ""}`;
+}
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { Button, PageHeader } from "../components/ui";
@@ -15,6 +22,7 @@ export default function Events() {
     api.events().then((data) => setEvents(data.events)).catch((reason) => setError(reason.message));
   }, []);
 
+  const kinds = ["Сите", "Вебинар", "Работилница", "Обука", "Средба", ...events.map((item) => item.kind)].filter((item, index, list) => list.indexOf(item) === index);
   const visible = events.filter((item) => kind === "Сите" || item.kind === kind);
   const upcoming = visible.filter((item) => item.status === "Претстои").sort((a, b) => a.date.localeCompare(b.date));
   const past = visible.filter((item) => item.status === "Завршен").sort((a, b) => b.date.localeCompare(a.date));
@@ -23,7 +31,7 @@ export default function Events() {
       <PageHeader title="Настани" description="Обуки, вебинари и средби за професионален развој." />
       {error && <p className="mb-4 text-sm font-semibold text-brand-urgent">{error}</p>}
       <div className="mb-5 flex flex-wrap gap-x-4 gap-y-2">
-        {["Сите", "Вебинар", "Работилница", "Обука", "Средба"].map((item) => (
+        {kinds.map((item) => (
           <button key={item} type="button" className={`sort-chip ${kind === item ? "active" : ""}`} onClick={() => setKind(item)}>
             {item}
           </button>
@@ -50,6 +58,7 @@ export default function Events() {
             <div className="my-5 space-y-2 text-sm text-muted-foreground">
               <p className="flex gap-2"><MapPin className="h-4 w-4" />{item.location}</p>
               <p className="flex gap-2"><Calendar className="h-4 w-4" />{item.day} {item.month}, {item.time}</p>
+              {item.deadlineDate && <p className="flex gap-2"><Clock className="h-4 w-4" />Рок за пријава: {deadlineLabel(item.deadlineDate)}</p>}
             </div>
             <Button variant={joinedEvents.includes(item.id) ? "outline" : "default"} onClick={() => toggleEvent(item.id)}>
               {joinedEvents.includes(item.id) ? "Откажи пријава" : "Пријави се"}

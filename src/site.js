@@ -56,6 +56,11 @@ export const pages = [
     description: "Прашања, искуства и идеи меѓу наставници во професионалната заедница.",
   },
   {
+    path: "/clenovi",
+    title: "Членови",
+    description: "Профили на членовите на Клубот на наставници.",
+  },
+  {
     path: "/oglasi",
     title: "Огласна табла",
     description: "Огласи, рокови и можности за наставници во интерната програма.",
@@ -104,6 +109,14 @@ export function pageByPath(pathname) {
       path: pathname,
       title: "Ресурсот не е пронајден",
       description: "Бараниот ресурс не постои на платформата Клуб на наставници.",
+      robots: "noindex, nofollow",
+    };
+  }
+  if (pathname.startsWith("/clenovi/") && pathname !== "/clenovi") {
+    return {
+      path: pathname,
+      title: "Профил на член",
+      description: "Профил на член на Клубот на наставници.",
       robots: "noindex, nofollow",
     };
   }

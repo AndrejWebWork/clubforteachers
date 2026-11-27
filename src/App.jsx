@@ -14,6 +14,7 @@ import Notices from "./pages/Notices";
 import CalendarPage from "./pages/Calendar";
 import LegalPage from "./pages/Legal";
 import Admin from "./pages/Admin";
+import Members from "./pages/Members";
 import NotFound from "./pages/NotFound";
 import Seo from "./components/Seo";
 
@@ -35,6 +36,8 @@ export default function App() {
         <Route path="/dokumenti" element={<Documents />} />
         <Route path="/forum" element={<Forum />} />
         <Route path="/forum/:topicId" element={<Topic />} />
+        <Route path="/clenovi" element={<Members />} />
+        <Route path="/clenovi/:memberId" element={<Members />} />
         <Route path="/oglasi" element={<Notices />} />
         <Route path="/kalendar" element={<CalendarPage />} />
         <Route path="/admin" element={<Admin />} />

@@ -7,7 +7,7 @@ import { placeCover, placeFile, uploadStatus, uploadVideoFile } from "../media";
 import TrainingAdmin from "../components/TrainingAdmin";
 import FeedAdmin from "../components/FeedAdmin";
 import EventAdmin from "../components/EventAdmin";
-import { Button, FilePick, PageHeader, SuccessPop, uploadFailed } from "../components/ui";
+import { Button, FilePick, OtherSelect, PageHeader, SuccessPop, uploadFailed } from "../components/ui";
 
 const profiles = ["Наставник", "Педагог", "Психолог", "Специјален едукатор", "Дефектолог", "Раководител"];
 
@@ -164,7 +164,10 @@ export default function Admin() {
             onSubmit={(event) => {
               event.preventDefault();
               run(async () => {
-                await api.createAccount(accountForm);
+                await api.createAccount({
+                  ...accountForm,
+                  title: accountForm.title.trim() || accountForm.profile,
+                });
                 setAccountForm({ name: "", email: "", password: "", role: "teacher", school: "", title: "" });
                 setNotice("Сметката е отворена.");
               });
@@ -187,9 +190,17 @@ export default function Admin() {
               <input className={inputClass} value={accountForm.title} onChange={(event) => setAccountForm({ ...accountForm, title: event.target.value })} placeholder="Наставник по ..." />
             </Field>
             <Field label="Улога">
-              <select className={inputClass} value={accountForm.profile || "Наставник"} onChange={(event) => setAccountForm({ ...accountForm, profile: event.target.value, role: event.target.value === "Раководител" ? "admin" : "teacher", title: event.target.value })}>
-                {profiles.map((item) => <option key={item}>{item}</option>)}
-              </select>
+              <OtherSelect
+                className={inputClass}
+                options={profiles}
+                value={accountForm.profile || "Наставник"}
+                placeholder="на пр. директор"
+                onChange={(profile) => setAccountForm({
+                  ...accountForm,
+                  profile,
+                  role: profile === "Раководител" ? "admin" : "teacher",
+                })}
+              />
             </Field>
             <Button type="submit">Отвори сметка</Button>
           </form>
@@ -265,21 +276,25 @@ export default function Admin() {
                 if (memberFilter === "сите") return true;
                 return (account.membership === "polno" ? "polno" : "osnovno") === memberFilter;
               }).map((account) => {
-                const job = account.role === "admin" ? "Раководител" : profiles.includes(account.title) ? account.title : "Наставник";
+                const job = account.title || (account.role === "admin" ? "Раководител" : "Наставник");
                 return (
                 <div key={account.id} className="grid gap-2 border-b py-3 lg:grid-cols-[minmax(0,1fr)_220px_minmax(180px,1fr)_auto] lg:items-center">
                   <div>
                     <b className="text-brand-deep">{account.name}</b>
                     <p className="text-sm text-muted-foreground">{account.email} · {account.school} · {job}</p>
+                    <Link className="text-sm font-bold text-primary underline" to={`/clenovi/${account.id}`}>Преглед на профил</Link>
                   </div>
                   <div className="grid gap-2">
-                  <select
+                  <OtherSelect
                     className={inputClass}
+                    options={profiles}
                     value={job}
-                    onChange={(event) => run(() => api.setProfile(account.id, event.target.value))}
-                  >
-                    {profiles.map((item) => <option key={item}>{item}</option>)}
-                  </select>
+                    placeholder="на пр. директор"
+                    onChange={(profile) => {
+                      if (!profile) return;
+                      run(() => api.setProfile(account.id, profile));
+                    }}
+                  />
                   <select
                     className={inputClass}
                     value={account.membership === "polno" ? "polno" : "osnovno"}
@@ -451,9 +466,13 @@ export default function Admin() {
               <input className={inputClass} value={fileForm.title} onChange={(event) => setFileForm({ ...fileForm, title: event.target.value })} placeholder="Ако е празно, се користи името на датотеката" />
             </Field>
             <Field label="Вид">
-              <select className={inputClass} value={fileForm.kind} onChange={(event) => setFileForm({ ...fileForm, kind: event.target.value })}>
-                {resourceKinds.map((kind) => <option key={kind}>{kind}</option>)}
-              </select>
+              <OtherSelect
+                className={inputClass}
+                options={resourceKinds}
+                value={fileForm.kind}
+                placeholder="Внесете вид"
+                onChange={(kind) => setFileForm({ ...fileForm, kind })}
+              />
             </Field>
             <Field label="Се појавува во">
               <select className={inputClass} value={fileForm.source} onChange={(event) => setFileForm({ ...fileForm, source: event.target.value })}>

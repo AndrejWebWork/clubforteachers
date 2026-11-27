@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { FileSpreadsheet, FileText, ScrollText, Stamp } from "lucide-react";
+import { FileSpreadsheet, FileText, MonitorPlay, ScrollText, Stamp } from "lucide-react";
 import { api } from "../api";
 import { useApp } from "../compositor/AppCompositor";
 import { downloadText } from "../download";
-import { placeCover, placeFile } from "../media";
-import { Button, FilePick, PageHeader, uploadFailed } from "../components/ui";
+import { placeCover, placeFile, uploadVideoFile } from "../media";
+import { Button, FilePick, OtherSelect, PageHeader, uploadFailed } from "../components/ui";
 
 const folders = ["Водич за клубот", "Правила за користење", "Правилници"];
 
 function FileIcon({ type }) {
+  if (type === "VIDEO") return <MonitorPlay />;
   if (type === "XLSX") return <FileSpreadsheet />;
   if (type === "DOCX") return <ScrollText />;
   return <FileText />;
@@ -70,12 +71,18 @@ export default function Documents({ embedded = false }) {
               const payload = { ...draft };
               if (cover) Object.assign(payload, await placeCover(cover));
               if (file) {
-                const placed = await placeFile(file);
-                payload.name = placed.name;
-                if (placed.url) {
-                  payload.url = placed.url;
-                  payload.size = placed.size;
-                } else payload.data = placed.data;
+                if (draft.type === "VIDEO") {
+                  payload.url = await uploadVideoFile(file);
+                  payload.name = file.name;
+                  payload.size = file.size;
+                } else {
+                  const placed = await placeFile(file);
+                  payload.name = placed.name;
+                  if (placed.url) {
+                    payload.url = placed.url;
+                    payload.size = placed.size;
+                  } else payload.data = placed.data;
+                }
               }
               await api.addDocument(payload);
               setDraft({ title: "", type: "PDF", folder: "Други документи", body: "" });
@@ -97,11 +104,15 @@ export default function Documents({ embedded = false }) {
           />
           <div className="grid gap-3 min-[700px]:grid-cols-2">
             <select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value })} className="h-11 rounded-md border bg-card px-3 text-sm">
-              {["PDF", "DOCX", "XLSX"].map((type) => <option key={type}>{type}</option>)}
+              {["PDF", "DOCX", "XLSX", "VIDEO"].map((type) => <option key={type}>{type}</option>)}
             </select>
-            <select value={draft.folder} onChange={(event) => setDraft({ ...draft, folder: event.target.value })} className="h-11 rounded-md border bg-card px-3 text-sm">
-              {folders.map((item) => <option key={item}>{item}</option>)}
-            </select>
+            <OtherSelect
+              className="h-11 rounded-md border bg-card px-3 text-sm"
+              options={folders}
+              value={draft.folder}
+              placeholder="Внесете папка"
+              onChange={(folder) => setDraft({ ...draft, folder })}
+            />
           </div>
           <textarea
             value={draft.body}
@@ -111,7 +122,7 @@ export default function Documents({ embedded = false }) {
             placeholder="Краток опис"
           />
           <span className="text-sm font-bold text-brand-deep">Насловна слика (опционално)<FilePick name="cover" accept="image/jpeg,image/png,image/webp,image/gif" /></span>
-          <span className="text-sm font-bold text-brand-deep">Документ<FilePick name="file" /></span>
+          <span className="text-sm font-bold text-brand-deep">{draft.type === "VIDEO" ? "Видео" : "Документ"}<FilePick name="file" accept={draft.type === "VIDEO" ? "video/mp4,video/webm,video/quicktime" : undefined} /></span>
           <div className="flex gap-2">
             <Button type="submit">Зачувај</Button>
             <Button type="button" variant="outline" onClick={() => setUploading(false)}>Откажи</Button>
@@ -142,9 +153,12 @@ export default function Documents({ embedded = false }) {
               <p className="mt-5 text-xs font-black uppercase text-primary">{item.folder}</p>
               <h3 className="mt-1 text-lg font-black text-brand-deep">{item.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{item.size} · {item.date} · {item.downloads || 0} симнувања</p>
+              {item.type === "VIDEO" && item.fileUrl && (
+                <video className="mt-3 w-full rounded-md" controls src={item.fileUrl} preload="metadata" />
+              )}
               <div className="mt-5 border-t pt-4">
                 <button type="button" className="pill" onClick={() => saveFile(item, noteDownload)}>
-                  Преземи
+                  {item.type === "VIDEO" ? "Преземи видео" : "Преземи"}
                 </button>
               </div>
             </article>

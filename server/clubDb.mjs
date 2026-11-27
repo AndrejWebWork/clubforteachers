@@ -105,6 +105,22 @@ function iso(value) {
   return value instanceof Date ? value.toISOString() : String(value);
 }
 
+function directoryCard(user, admin) {
+  return {
+    id: user.id,
+    name: user.name,
+    title: user.title,
+    school: user.school,
+    location: user.location || "",
+    areas: user.areas || "",
+    bio: user.bio || "",
+    photo: user.photo || "",
+    interests: user.interests || [],
+    skills: user.skills || [],
+    ...(admin ? { email: user.email, role: user.role, membership: user.membership } : {}),
+  };
+}
+
 function publicUser(user) {
   return {
     id: user.id,
@@ -214,7 +230,7 @@ const postSelect = `
   LEFT JOIN post_messages m ON m.post_id = p.id
 `;
 
-const SCHEMA_VERSION = "2026-11-09-covers";
+const SCHEMA_VERSION = "2026-11-27-event-deadline";
 
 async function setup() {
   try {
@@ -563,6 +579,54 @@ async function handle(method, url, req) {
     return { status: 200, body: { members: rows.map((row) => row.name).filter(Boolean) } };
   }
 
+  if (method === "GET" && url === "/api/directory") {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const admin = auth.user.role === "admin";
+    const { rows } = await pool.query("SELECT * FROM users ORDER BY name");
+    return {
+      status: 200,
+      body: {
+        members: rows.map((row) => {
+          const card = directoryCard(mapUser(row), admin);
+          const photo = card.photo.startsWith("data:") ? "" : card.photo;
+          return { id: card.id, name: card.name, title: card.title, school: card.school, photo };
+        }),
+      },
+    };
+  }
+
+  const directoryMatch = url.match(/^\/api\/directory\/([^/]+)$/);
+  if (method === "GET" && directoryMatch) {
+    const auth = await requireUser(req);
+    if (auth.error) return auth.error;
+    const found = await pool.query("SELECT * FROM users WHERE id = $1", [directoryMatch[1]]);
+    if (!found.rows[0]) return { status: 404, body: { error: "Членот не е пронајден." } };
+    const admin = auth.user.role === "admin";
+    const member = directoryCard(mapUser(found.rows[0]), admin);
+    const certs = await pool.query(
+      `SELECT t.id, t.title, c.issued_at
+       FROM certificates c
+       JOIN trainings t ON t.id = c.training_id
+       WHERE c.user_id = $1
+       ORDER BY c.issued_at DESC`,
+      [directoryMatch[1]],
+    );
+    return {
+      status: 200,
+      body: {
+        member: {
+          ...member,
+          certificates: certs.rows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            issuedAt: iso(row.issued_at),
+          })),
+        },
+      },
+    };
+  }
+
   if (method === "GET" && url === "/api/accounts") {
     const auth = await requireAdmin(req);
     if (auth.error) return auth.error;
@@ -901,14 +965,14 @@ async function handle(method, url, req) {
         return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
       }
     }
-    const profiles = ["Наставник", "Педагог", "Психолог", "Специјален едукатор", "Дефектолог"];
-    if (body.profile === "Раководител" || profiles.includes(body.profile)) {
-      const nextAccess = body.profile === "Раководител" ? "admin" : "teacher";
+    const profileTitle = text(body.profile, 80);
+    if (profileTitle) {
+      const nextAccess = profileTitle === "Раководител" ? "admin" : "teacher";
       if (user.role === "admin" && nextAccess !== "admin") {
         const admins = await pool.query("SELECT COUNT(*)::int AS count FROM users WHERE access = 'admin'");
         if (admins.rows[0].count < 2) return { status: 400, body: { error: "Мора да остане барем еден раководител." } };
       }
-      await pool.query("UPDATE users SET access = $1, role = $2 WHERE id = $3", [nextAccess, body.profile, user.id]);
+      await pool.query("UPDATE users SET access = $1, role = $2 WHERE id = $3", [nextAccess, profileTitle, user.id]);
       const fresh = await pool.query("SELECT * FROM users WHERE id = $1", [user.id]);
       return { status: 200, body: { account: publicUser(mapUser(fresh.rows[0])) } };
     }
@@ -1103,12 +1167,13 @@ async function handle(method, url, req) {
     if (cover.error) return { status: 400, body: { error: cover.error } };
     const result = await addEvent(pool, id("nastan"), {
       title: text(body.title, 140),
-      kind: text(body.kind, 40),
+      kind: text(body.kind, 80),
       date: text(body.date, 10),
       time: text(body.time, 8),
       location: text(body.location, 80),
       status: text(body.status, 20),
       detail: text(body.detail, 1000),
+      deadlineDate: text(body.deadlineDate, 10),
       cover: cover.url,
     });
     if (result.error) return { status: 400, body: { error: result.error } };
@@ -1156,9 +1221,12 @@ async function handle(method, url, req) {
     const result = url === "/api/notices"
       ? await feeds.addNotice(pool, id("oglas"), {
         title: text(body.title, 140),
-        category: text(body.category, 40),
+        category: text(body.category, 80),
         day: text(body.day, 2),
         month: text(body.month, 16).toUpperCase(),
+        eventDate: text(body.eventDate, 10),
+        eventTime: text(body.eventTime, 8),
+        deadlineDate: text(body.deadlineDate, 10),
         status: text(body.status, 40) || "НОВО",
         priority: Boolean(body.priority),
         body: text(body.text, 4000),
@@ -1166,7 +1234,7 @@ async function handle(method, url, req) {
       })
       : await feeds.addCalendarEntry(pool, id("cal"), {
         title: text(body.title, 140),
-        category: text(body.category, 40),
+        category: text(body.category, 80),
         year: body.year,
         month: body.month,
         day: body.day,
@@ -1191,9 +1259,12 @@ async function handle(method, url, req) {
       ? await feeds.removeNotice(pool, noticeId)
       : await feeds.updateNotice(pool, noticeId, {
         title: text(body.title, 140),
-        category: text(body.category, 40),
+        category: text(body.category, 80),
         day: text(body.day, 2),
         month: text(body.month, 16).toUpperCase(),
+        eventDate: text(body.eventDate, 10),
+        eventTime: text(body.eventTime, 8),
+        deadlineDate: text(body.deadlineDate, 10),
         status: text(body.status, 40) || "НОВО",
         priority: Boolean(body.priority),
         body: text(body.text, 4000),

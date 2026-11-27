@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { placeCover } from "../media";
-import { Button, EuroDate, FilePick, SuccessPop } from "./ui";
+import { Button, EuroDate, FilePick, OtherSelect, SuccessPop } from "./ui";
 
 const inputClass = "h-11 w-full rounded-md border bg-card px-3 text-sm outline-none ring-ring focus:ring-2";
 const kinds = ["Вебинар", "Работилница", "Обука", "Средба"];
-const empty = { title: "", kind: "Вебинар", date: "", time: "10:00", location: "", status: "Претстои", detail: "" };
+const empty = { title: "", kind: "Вебинар", date: "", time: "10:00", deadlineDate: "", location: "", status: "Претстои", detail: "" };
 
 export default function EventAdmin() {
   const [items, setItems] = useState([]);
@@ -55,11 +55,16 @@ export default function EventAdmin() {
         <h2 className="section-heading">Нов настан</h2>
         <p className="text-sm text-muted-foreground">Се појавува на Настани и на календарот. Пријавените се гледаат под настанот.</p>
         <input className={inputClass} placeholder="Наслов" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-        <select className={inputClass} value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
-          {kinds.map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <EuroDate required value={form.date} onChange={(date) => setForm({ ...form, date })} />
-        <input className={inputClass} type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required />
+        <OtherSelect className={inputClass} options={kinds} value={form.kind} onChange={(kind) => setForm({ ...form, kind })} placeholder="Внесете вид на настан" />
+        <div>
+          <span className="mb-1 block text-sm font-bold text-brand-deep">Датум и време на настанот</span>
+          <EuroDate required value={form.date} onChange={(date) => setForm({ ...form, date })} />
+          <input className={`${inputClass} mt-2`} type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required />
+        </div>
+        <div>
+          <span className="mb-1 block text-sm font-bold text-brand-deep">Рок за пријава</span>
+          <EuroDate required value={form.deadlineDate} onChange={(deadlineDate) => setForm({ ...form, deadlineDate })} />
+        </div>
         <input className={inputClass} placeholder="Место" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required />
         <select className={inputClass} value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
           <option>Претстои</option>

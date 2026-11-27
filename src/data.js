@@ -14,6 +14,7 @@ export const nav = [
   { label: "Ресурси", to: "/resursi" },
   { label: "Настани", to: "/nastani" },
   { label: "Даскалски форум", to: "/forum" },
+  { label: "Членови", to: "/clenovi" },
   { label: "Календар", to: "/kalendar" },
 ];
 

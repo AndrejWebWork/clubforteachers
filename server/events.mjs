@@ -1,4 +1,3 @@
-const kinds = ["Вебинар", "Работилница", "Обука", "Средба"];
 const statuses = ["Претстои", "Завршен"];
 const months = ["Јан", "Фев", "Мар", "Апр", "Мај", "Јуни", "Јули", "Авг", "Сеп", "Окт", "Ное", "Дек"];
 
@@ -16,6 +15,7 @@ export async function ensureEvents(pool) {
       created_at timestamptz NOT NULL DEFAULT NOW()
     );
     ALTER TABLE club_events ADD COLUMN IF NOT EXISTS cover_url text NOT NULL DEFAULT '';
+    ALTER TABLE club_events ADD COLUMN IF NOT EXISTS deadline_date text NOT NULL DEFAULT '';
     CREATE TABLE IF NOT EXISTS event_signups (
       event_id text NOT NULL,
       user_id uuid NOT NULL,
@@ -61,6 +61,7 @@ function mapEvent(row) {
     status: row.status,
     detail: row.detail,
     cover: row.cover_url || "",
+    deadlineDate: row.deadline_date || "",
     createdAt: row.created_at,
   };
 }
@@ -106,18 +107,19 @@ export async function toggleSignup(pool, eventId, user) {
 }
 
 export async function addEvent(pool, id, item) {
-  if (!kinds.includes(item.kind)) return { error: "Изберете вид на настан." };
+  if (!item.kind) return { error: "Изберете вид на настан." };
   if (!statuses.includes(item.status)) return { error: "Изберете дали настанот претстои или е завршен." };
   if (!item.title || !item.detail) return { error: "Насловот и описот се задолжителни." };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return { error: "Изберете датум." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return { error: "Изберете датум на настанот." };
   const month = Number(item.date.slice(5, 7));
   const day = Number(item.date.slice(8, 10));
   if (month < 1 || month > 12 || day < 1 || day > 31) return { error: "Датумот не е исправен." };
   if (!item.time || !item.location) return { error: "Потребни се час и место." };
+  if (item.deadlineDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.deadlineDate)) return { error: "Изберете рок за пријава." };
   await pool.query(
-    `INSERT INTO club_events (id, title, kind, event_date, time, location, status, detail, created_at, cover_url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), $9)`,
-    [id, item.title, item.kind, item.date, item.time, item.location, item.status, item.detail, item.cover || ""],
+    `INSERT INTO club_events (id, title, kind, event_date, time, location, status, detail, created_at, cover_url, deadline_date)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), $9, $10)`,
+    [id, item.title, item.kind, item.date, item.time, item.location, item.status, item.detail, item.cover || "", item.deadlineDate || ""],
   );
   const { rows } = await pool.query("SELECT * FROM club_events WHERE id = $1", [id]);
   const event = mapEvent(rows[0]);

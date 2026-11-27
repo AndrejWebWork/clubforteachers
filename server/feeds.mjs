@@ -2,7 +2,6 @@ import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import webpush from "web-push";
-import { noticeCategories } from "../src/data.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const calendarCategories = ["Обуки", "Настани", "Работилници", "Рокови", "Други активности"];
@@ -76,6 +75,9 @@ export async function ensureFeeds(pool) {
     ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_year integer NOT NULL DEFAULT 2026;
     ALTER TABLE calendar_entries ADD COLUMN IF NOT EXISTS entry_month integer NOT NULL DEFAULT 6;
     ALTER TABLE board_notices ADD COLUMN IF NOT EXISTS cover_url text NOT NULL DEFAULT '';
+    ALTER TABLE board_notices ADD COLUMN IF NOT EXISTS event_date text NOT NULL DEFAULT '';
+    ALTER TABLE board_notices ADD COLUMN IF NOT EXISTS event_time text NOT NULL DEFAULT '';
+    ALTER TABLE board_notices ADD COLUMN IF NOT EXISTS deadline_date text NOT NULL DEFAULT '';
     UPDATE board_notices SET month = 'ЈУНИ' WHERE upper(month) = 'ЈУН';
     UPDATE board_notices SET month = 'ЈУЛИ' WHERE upper(month) = 'ЈУЛ';
     CREATE TABLE IF NOT EXISTS feed_seen (
@@ -122,11 +124,31 @@ function mapNotice(row) {
     category: row.category,
     day: row.day,
     month: noticeMonth(row.month),
+    eventDate: row.event_date || "",
+    eventTime: row.event_time || "",
+    deadlineDate: row.deadline_date || "",
     status: row.status,
     priority: row.priority,
     text: row.body,
     cover: row.cover_url || "",
     createdAt: row.created_at,
+  };
+}
+
+function deadlineParts(item) {
+  const iso = String(item.deadlineDate || "").slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const month = Number(iso.slice(5, 7));
+    return {
+      day: String(Number(iso.slice(8, 10))).padStart(2, "0"),
+      month: noticeMonths[month - 1] || noticeMonth(item.month),
+      deadlineDate: iso,
+    };
+  }
+  return {
+    day: item.day || "01",
+    month: noticeMonth(item.month),
+    deadlineDate: item.deadlineDate || "",
   };
 }
 
@@ -188,30 +210,48 @@ async function notify(pool, { column, userId, title, body, url }) {
 }
 
 export async function addNotice(pool, id, item) {
-  if (!noticeCategories.includes(item.category)) return { error: "Изберете категорија од списокот." };
+  if (!item.category) return { error: "Изберете категорија." };
   if (!item.title || !item.body) return { error: "Насловот и текстот се задолжителни." };
+  const stamp = deadlineParts(item);
   const createdAt = new Date().toISOString();
   await pool.query(
-    `INSERT INTO board_notices (id, title, category, day, month, status, priority, body, created_at, cover_url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, createdAt, item.cover || ""],
+    `INSERT INTO board_notices (id, title, category, day, month, status, priority, body, created_at, cover_url, event_date, event_time, deadline_date)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+    [id, item.title, item.category, stamp.day, stamp.month, item.status || "НОВО", Boolean(item.priority), item.body, createdAt, item.cover || "", item.eventDate || "", item.eventTime || "", stamp.deadlineDate],
   );
-  await notify(pool, { column: "notices", title: "Нов оглас", body: item.title, url: "/oglasi" });
-  const notice = { id, ...item, month: noticeMonth(item.month), text: item.body, cover: item.cover || "", createdAt };
+  try {
+    await notify(pool, { column: "notices", title: "Нов оглас", body: item.title, url: "/oglasi" });
+  } catch {
+    /* Push must not block the notice. */
+  }
+  const notice = {
+    id,
+    ...item,
+    day: stamp.day,
+    month: stamp.month,
+    deadlineDate: stamp.deadlineDate,
+    eventDate: item.eventDate || "",
+    eventTime: item.eventTime || "",
+    text: item.body,
+    cover: item.cover || "",
+    createdAt,
+  };
   await placeNoticeOnCalendar(pool, notice);
   return { notice };
 }
 
 export async function updateNotice(pool, id, item) {
-  if (!noticeCategories.includes(item.category)) return { error: "Изберете категорија од списокот." };
+  if (!item.category) return { error: "Изберете категорија." };
   if (!item.title || !item.body) return { error: "Насловот и текстот се задолжителни." };
+  const stamp = deadlineParts(item);
   const { rows } = await pool.query(
     `UPDATE board_notices
      SET title = $2, category = $3, day = $4, month = $5, status = $6, priority = $7, body = $8,
-         cover_url = CASE WHEN $9 = '' THEN cover_url ELSE $9 END
+         cover_url = CASE WHEN $9 = '' THEN cover_url ELSE $9 END,
+         event_date = $10, event_time = $11, deadline_date = $12
      WHERE id = $1
      RETURNING *`,
-    [id, item.title, item.category, item.day || "01", noticeMonth(item.month), item.status || "НОВО", Boolean(item.priority), item.body, item.cover || ""],
+    [id, item.title, item.category, stamp.day, stamp.month, item.status || "НОВО", Boolean(item.priority), item.body, item.cover || "", item.eventDate || "", item.eventTime || "", stamp.deadlineDate],
   );
   if (!rows[0]) return { error: "Огласот не е пронајден." };
   const notice = mapNotice(rows[0]);
@@ -231,7 +271,7 @@ export async function addCalendarEntry(pool, id, item) {
   const month = Number(item.month);
   const day = Number(item.day);
   const last = new Date(year, month, 0).getDate();
-  if (!calendarCategories.includes(item.category)) return { error: "Изберете категорија од списокот." };
+  if (!item.category) return { error: "Изберете категорија." };
   if (![2026, 2027].includes(year) || month < 1 || month > 12 || !Number.isInteger(day) || day < 1 || day > last) {
     return { error: "Датумот мора да биде во 2026 или 2027." };
   }

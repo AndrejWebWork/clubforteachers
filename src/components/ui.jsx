@@ -77,6 +77,37 @@ export function EuroDate({ value, onChange, minYear = CAL_START, maxYear = CAL_E
   );
 }
 
+export function OtherSelect({ options, value, onChange, className, placeholder = "Внесете...", required = true }) {
+  const listed = options.filter((item) => item !== "Друго");
+  const custom = Boolean(value) && !listed.includes(value);
+  const mode = custom || value === "Друго" || value === "" ? "Друго" : value;
+  return (
+    <div className="grid gap-2">
+      <select
+        className={className}
+        value={listed.includes(value) ? value : "Друго"}
+        onChange={(event) => {
+          if (event.target.value === "Друго") onChange("");
+          else onChange(event.target.value);
+        }}
+        required={required && mode !== "Друго"}
+      >
+        {listed.map((item) => <option key={item}>{item}</option>)}
+        <option>Друго</option>
+      </select>
+      {mode === "Друго" && (
+        <input
+          className={className}
+          value={custom ? value : ""}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+        />
+      )}
+    </div>
+  );
+}
+
 const ActionContext = createContext(null);
 
 export function ActionProvider({ children }) {

@@ -17,6 +17,7 @@ import {
   Presentation,
   Search,
   Shield,
+  Users,
   X,
 } from "lucide-react";
 import { deliverInvite, isGmailAddress } from "../inviteMail";
@@ -27,6 +28,7 @@ import { useApp } from "../compositor/AppCompositor";
 import CookieConsent from "./CookieConsent";
 import { api } from "../api";
 import Landing from "../pages/Landing";
+import ClubSocials from "./ClubSocials";
 import { Button, UploadToast } from "./ui";
 import { dismissTrainingJob, watchTrainingJobs } from "../trainingJobs";
 import MotionRoot from "../motion/MotionRoot";
@@ -54,6 +56,7 @@ const icons = {
   "/resursi": FolderOpen,
   "/nastani": CalendarRange,
   "/forum": MessageCircle,
+  "/clenovi": Users,
   "/oglasi": Megaphone,
   "/kalendar": CalendarDays,
   "/admin": Shield,
@@ -186,6 +189,7 @@ export default function Layout({ children }) {
             <Mail className="h-5 w-5 shrink-0" />
             Контактирај нè
           </button>
+          <ClubSocials compact />
           <a className="lead-mark" href="https://lead.org.mk/" target="_blank" rel="noreferrer">
             <img src="/lead-logo.png" alt="LEAD" />
           </a>
